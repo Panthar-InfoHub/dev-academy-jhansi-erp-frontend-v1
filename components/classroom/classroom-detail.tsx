@@ -33,13 +33,9 @@ import {
   updateClassroomSection,
   deleteClassroomSection,
   getClassroomStudentsInfo,
-  getClassroomSectionStudentsInfo, classroomStudentDataWithFees, classroomSectionStudentDataWithFees,
+  getClassroomSectionStudentsInfo,
 } from "@/lib/actions/classroom"
-import type {
-  completeClassDetails,
-  completeClassSectionDetails,
-  subject
-} from "@/types/classroom"
+import type { completeClassDetails, completeClassSectionDetails, subject } from "@/types/classroom"
 import {
   Dialog,
   DialogContent,
@@ -89,8 +85,8 @@ export function ClassroomDetail({ classroom, sections: initialSections }: Classr
 
   // Student data state
   const [isLoadingStudents, setIsLoadingStudents] = useState(false)
-  const [classStudents, setClassStudents] = useState<classroomStudentDataWithFees[]>([])
-  const [sectionStudents, setSectionStudents] = useState<classroomSectionStudentDataWithFees[]>([])
+  const [classStudents, setClassStudents] = useState<any[]>([])
+  const [sectionStudents, setSectionStudents] = useState<any[]>([])
   const [selectedSession, setSelectedSession] = useState<string>(getCurrentSession())
   const [showActiveOnly, setShowActiveOnly] = useState(true)
 
@@ -209,10 +205,8 @@ export function ClassroomDetail({ classroom, sections: initialSections }: Classr
 
   // Fetch students when selection changes
   useEffect(() => {
-    if (activeTab === "students") {
-      fetchStudents()
-    }
-  }, [activeTab, selectedSection, selectedSession, showActiveOnly, classroom.id])
+    fetchStudents()
+  }, [selectedSection, selectedSession, showActiveOnly, classroom.id])
 
   // Function to truncate ID for display
   const truncateId = (id: string) => {
@@ -945,12 +939,11 @@ export function ClassroomDetail({ classroom, sections: initialSections }: Classr
 
         <div className="md:col-span-2">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="overview">Class Overview</TabsTrigger>
               <TabsTrigger value="section-details" disabled={!selectedSection}>
                 Section Details
               </TabsTrigger>
-              <TabsTrigger value="students">Students</TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="mt-4 space-y-4">
@@ -1213,179 +1206,192 @@ export function ClassroomDetail({ classroom, sections: initialSections }: Classr
                 </>
               )}
             </TabsContent>
-
-            <TabsContent value="students" className="mt-4 space-y-4">
-              <Card>
-                <CardHeader>
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <CardTitle>{selectedSection ? `Students in ${selectedSection.name}` : "All Students"}</CardTitle>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                        <Select value={selectedSession} onValueChange={setSelectedSession}>
-                          <SelectTrigger className="w-[120px]">
-                            <SelectValue placeholder="Select session" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {getSessionOptions().map((session) => (
-                              <SelectItem key={session} value={session}>
-                                {session}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Filter className="h-4 w-4 text-muted-foreground" />
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id="activeOnly"
-                            checked={showActiveOnly}
-                            onCheckedChange={(checked) => setShowActiveOnly(checked as boolean)}
-                          />
-                          <label
-                            htmlFor="activeOnly"
-                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                          >
-                            Active only
-                          </label>
-                        </div>
-                      </div>
-                      <Button variant="outline" size="sm" onClick={fetchStudents} disabled={isLoadingStudents}>
-                        <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingStudents ? "animate-spin" : ""}`} />
-                        Refresh
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {isLoadingStudents ? (
-                    <div className="flex justify-center py-8">
-                      <RefreshCw className="h-8 w-8 animate-spin text-primary" />
-                    </div>
-                  ) : selectedSection ? (
-                    // Section students table
-                    sectionStudents.length === 0 ? (
-                      <div className="text-center py-6">
-                        <p className="text-muted-foreground">
-                          No students found in this section for the selected session
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="rounded-md border overflow-x-auto">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>ID</TableHead>
-                              <TableHead>Name</TableHead>
-                              <TableHead>Monthly Fee</TableHead>
-                              <TableHead>Fee Status</TableHead>
-                              <TableHead className="w-[80px]">Actions</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {sectionStudents.map((student) => (
-                              <TableRow key={student.id}>
-                                <TableCell>
-                                  <div className="flex items-center gap-1">
-                                    <span className="text-xs font-mono">{truncateId(student.studentId)}</span>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-6 w-6"
-                                      onClick={() => handleCopyId(student.studentId)}
-                                    >
-                                      <Copy className="h-3.5 w-3.5" />
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                                <TableCell className="font-medium">{student.student?.name || "Unknown"}</TableCell>
-                                <TableCell>₹{student.monthlyFee}</TableCell>
-                                <TableCell>
-                                  <Badge variant={student.feeCompletelyPaid ? "default" : "destructive"}>
-                                    {student.feeCompletelyPaid ? "Paid" : "Due"}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8"
-                                    onClick={() => window.open(`/dashboard/student/${student.studentId}`, "_blank")}
-                                  >
-                                    <ExternalLink className="h-4 w-4" />
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    )
-                  ) : // Class students table
-                  classStudents.length === 0 ? (
-                    <div className="text-center py-6">
-                      <p className="text-muted-foreground">No students found in this class for the selected session</p>
-                    </div>
-                  ) : (
-                    <div className="rounded-md border overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>ID</TableHead>
-                            <TableHead>Name</TableHead>
-                            <TableHead>Section</TableHead>
-                            <TableHead>Monthly Fee</TableHead>
-                            <TableHead>Fee Status</TableHead>
-                            <TableHead className="w-[80px]">Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {classStudents.map((student) => (
-                            <TableRow key={student.id}>
-                              <TableCell>
-                                <div className="flex items-center gap-1">
-                                  <span className="text-xs font-mono">{truncateId(student.studentId)}</span>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-6 w-6"
-                                    onClick={() => handleCopyId(student.studentId)}
-                                  >
-                                    <Copy className="h-3.5 w-3.5" />
-                                  </Button>
-                                </div>
-                              </TableCell>
-                              <TableCell className="font-medium">{student.student?.name || "Unknown"}</TableCell>
-                              <TableCell>{student.classSection?.name || "N/A"}</TableCell>
-                              <TableCell>₹{student.monthlyFee}</TableCell>
-                              <TableCell>
-                                <Badge variant={student.feeCompletelyPaid ? "default" : "destructive"}>
-                                  {student.feeCompletelyPaid ? "Paid" : "Due"}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => window.open(`/dashboard/student/${student.studentId}`, "_blank")}
-                                >
-                                  <ExternalLink className="h-4 w-4" />
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
           </Tabs>
         </div>
       </div>
+
+      {/* Students Section - Always visible */}
+      <Card className="mt-6">
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <CardTitle>{selectedSection ? `Students in ${selectedSection.name}` : "All Students in Class"}</CardTitle>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <Select value={selectedSession} onValueChange={setSelectedSession}>
+                  <SelectTrigger className="w-[120px]">
+                    <SelectValue placeholder="Select session" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getSessionOptions().map((session) => (
+                      <SelectItem key={session} value={session}>
+                        {session}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="activeOnly"
+                    checked={showActiveOnly}
+                    onCheckedChange={(checked) => setShowActiveOnly(checked as boolean)}
+                  />
+                  <label
+                    htmlFor="activeOnly"
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    Active only
+                  </label>
+                </div>
+              </div>
+              <Button variant="outline" size="sm" onClick={fetchStudents} disabled={isLoadingStudents}>
+                <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingStudents ? "animate-spin" : ""}`} />
+                Refresh
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoadingStudents ? (
+            <div className="flex justify-center py-8">
+              <RefreshCw className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : selectedSection ? (
+            // Section students table
+            sectionStudents.length === 0 ? (
+              <div className="text-center py-6">
+                <p className="text-muted-foreground">No students found in this section for the selected session</p>
+              </div>
+            ) : (
+              <div className="rounded-md border overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>ID</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Monthly Fee</TableHead>
+                      <TableHead>Due Amount</TableHead>
+                      <TableHead>Fee Status</TableHead>
+                      <TableHead className="w-[80px]">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sectionStudents.map((student) => (
+                      <TableRow key={student.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs font-mono">{truncateId(student.studentId)}</span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => handleCopyId(student.studentId)}
+                            >
+                              <Copy className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-medium">{student.student?.name || "Unknown"}</TableCell>
+                        <TableCell>₹{student.monthlyFee}</TableCell>
+                        <TableCell>
+                          {student.feeDueTotal > 0 ? (
+                            <span className="text-red-500 font-medium">₹{student.feeDueTotal}</span>
+                          ) : (
+                            <span className="text-green-500 font-medium">₹0</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={student.feeCompletelyPaid ? "default" : "destructive"}>
+                            {student.feeCompletelyPaid ? "Paid" : "Due"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => window.open(`/dashboard/student/${student.studentId}`, "_blank")}
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )
+          ) : // Class students table
+          classStudents.length === 0 ? (
+            <div className="text-center py-6">
+              <p className="text-muted-foreground">No students found in this class for the selected session</p>
+            </div>
+          ) : (
+            <div className="rounded-md border overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>ID</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Section</TableHead>
+                    <TableHead>Monthly Fee</TableHead>
+                    <TableHead>Due Amount</TableHead>
+                    <TableHead>Fee Status</TableHead>
+                    <TableHead className="w-[80px]">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {classStudents.map((student) => (
+                    <TableRow key={student.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs font-mono">{truncateId(student.studentId)}</span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => handleCopyId(student.studentId)}
+                          >
+                            <Copy className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-medium">{student.student?.name || "Unknown"}</TableCell>
+                      <TableCell>{student.classSection?.name || "N/A"}</TableCell>
+                      <TableCell>₹{student.monthlyFee}</TableCell>
+                      <TableCell>
+                        {student.feeDueTotal > 0 ? (
+                          <span className="text-red-500 font-medium">₹{student.feeDueTotal}</span>
+                        ) : (
+                          <span className="text-green-500 font-medium">₹0</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={student.feeCompletelyPaid ? "default" : "destructive"}>
+                          {student.feeCompletelyPaid ? "Paid" : "Due"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => window.open(`/dashboard/student/${student.studentId}`, "_blank")}
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Edit Section Dialog */}
       <Dialog open={editSectionDialogOpen} onOpenChange={setEditSectionDialogOpen}>
