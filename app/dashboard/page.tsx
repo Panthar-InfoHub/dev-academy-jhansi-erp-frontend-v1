@@ -1,23 +1,13 @@
 import { auth, type customUser } from "@/auth"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { getDashboardAnalytics } from "@/lib/actions/dashboard";
 
 export default async function DashboardPage() {
   const session = await auth()
   const user = session?.user as customUser
 
   // This would be replaced with actual data fetching
-  const analyticsData = {
-    totalActiveEmployees: 25,
-    totalTeachers: 18,
-    totalAdmins: 3,
-    totalRegisteredStudentsInDB: 450,
-    totalActiveStudents: 420,
-    enrollmentsCreatedInLastThirtyDays: 15,
-    activeStudentEnrollments: 430,
-    totalDuePayment: 25000,
-    totalVehicles: 8,
-    totalFeePaymentsReceived: 350000,
-  }
+  const analyticsData = (await getDashboardAnalytics()).data
 
   return (
     <div className="w-full">

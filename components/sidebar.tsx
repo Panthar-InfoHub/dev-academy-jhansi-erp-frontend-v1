@@ -3,7 +3,7 @@
 import type React from "react"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import {
@@ -56,6 +56,7 @@ export function SidebarNav({ user }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
     Students: true, // Open by default
+    Employees: true, // Open by default
   })
 
   // Ensure theme component only renders after mounting to prevent hydration mismatch
@@ -65,6 +66,7 @@ export function SidebarNav({ user }: SidebarProps) {
 
   const isAdmin = user.isAdmin
   const isTeacher = user.isTeacher
+  const router = useRouter()
 
   const routes: NavItem[] = [
     {
@@ -100,6 +102,12 @@ export function SidebarNav({ user }: SidebarProps) {
       visible: isAdmin,
       adminOnly: true,
       children: [
+        {
+          href: "/dashboard/employees",
+          icon: ClipboardList,
+          title: "Employee Management",
+          visible: isAdmin,
+        },
         {
           href: "/dashboard/employees/attendance-report",
           icon: ClipboardList,
@@ -144,6 +152,25 @@ export function SidebarNav({ user }: SidebarProps) {
 
   const profileImageUrl = `${BACKEND_SERVER_URL}/v1/employee/${user.id}/profileImg`
 
+  const handleNavItemClick = (item: NavItem) => {
+    // If the item has children, navigate to the first visible child
+    if (item.children && item.children.length > 0) {
+      const firstVisibleChild = item.children.find(
+        (child) => child.visible && (!child.adminOnly || (child.adminOnly && isAdmin)),
+      )
+
+      if (firstVisibleChild) {
+        router.push(firstVisibleChild.href)
+        if (isMobileMenuOpen) setIsMobileMenuOpen(false)
+        return
+      }
+    }
+
+    // Otherwise, navigate to the item's href
+    router.push(item.href)
+    if (isMobileMenuOpen) setIsMobileMenuOpen(false)
+  }
+
   const renderNavItem = (item: NavItem, isNested = false) => {
     // Skip items that should not be visible to this user
     if (!item.visible || (item.adminOnly && !isAdmin)) {
@@ -185,7 +212,7 @@ export function SidebarNav({ user }: SidebarProps) {
           >
             <div className="flex items-center">
               <Link
-                href={item.href}
+                href={item.children[0].href}
                 className={cn(
                   "flex flex-1 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
                   pathname === item.href ? "bg-accent text-accent-foreground" : "transparent",
@@ -209,7 +236,7 @@ export function SidebarNav({ user }: SidebarProps) {
           {/* When sidebar is collapsed, show only the icon */}
           {isCollapsed && (
             <Link
-              href={item.href}
+              href={item.children[0].href}
               className={cn(
                 "flex justify-center rounded-md px-0 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
                 pathname === item.href ? "bg-accent text-accent-foreground" : "transparent",

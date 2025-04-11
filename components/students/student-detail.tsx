@@ -426,8 +426,8 @@ export function StudentDetail({ student }: StudentDetailProps) {
                           size="sm"
                           className="w-full"
                           onClick={() => {
-                            // Open in new tab
-                            window.open(`/dashboard/student/${studentData.id}/enrollment/${enrollment.id}`, "_blank")
+                            // Navigate in the same tab
+                            router.push(`/dashboard/student/${studentData.id}/enrollment/${enrollment.id}`)
                           }}
                         >
                           <ExternalLink className="mr-2 h-4 w-4" />

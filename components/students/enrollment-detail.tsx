@@ -22,7 +22,7 @@ import {
   Plus,
   RefreshCw,
 } from "lucide-react"
-import { deleteEnrollment, getEnrollmentDetails } from "@/lib/actions/student"
+import { deleteEnrollment, getEnrollmentDetails, deleteExamEntry } from "@/lib/actions/student"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -44,7 +44,7 @@ import { BACKEND_SERVER_URL } from "@/env"
 import { cn } from "@/lib/utils"
 import { CreateExamDialog } from "./create-exam-dialog"
 import { UpdateExamDialog } from "./update-exam-dialog"
-import { completeSubjectDetails, subject } from "@/types/classroom";
+import type { completeSubjectDetails } from "@/types/classroom"
 
 interface EnrollmentDetailProps {
   enrollment: completeStudentEnrollment
@@ -73,6 +73,8 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
   const [selectedExam, setSelectedExam] = useState<examEntry | null>(null)
   const [isLoadingExams, setIsLoadingExams] = useState(false)
   const [examsByTerm, setExamsByTerm] = useState<Record<string, examEntry[]>>({})
+  const [examToDelete, setExamToDelete] = useState<{ examId: string; examName: string } | null>(null)
+  const [isDeletingExam, setIsDeletingExam] = useState(false)
 
   // Get student initials for avatar
   const studentName = enrollmentData.student?.name || "Student"
@@ -163,86 +165,6 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
     setExamsByTerm(sortedGroupedExams)
   }
 
-  useEffect(() => {
-    const fetchExams = async () => {
-      setIsLoadingExams(true)
-      try {
-        // const response = await fetch(`/api/exams?enrollmentId=${enrollmentData.id}`);
-        // const data = await response.json();
-        // setExamsByTerm(data);
-        // Mock data for testing
-        // const mockData = {
-        //   "Term 1": [
-        //     {
-        //       examEntryId: "1",
-        //       examName: "Midterm Exam",
-        //       examDate: "2024-08-15",
-        //       examType: "Theory",
-        //       studentPassed: true,
-        //       subjects: [
-        //         {
-        //           name: "Mathematics",
-        //           code: "MATH101",
-        //           theoryExam: true,
-        //           practicalExam: false,
-        //           obtainedMarksTheory: 85,
-        //           totalMarksTheory: 100,
-        //           totalMarks: 100,
-        //         },
-        //         {
-        //           name: "Science",
-        //           code: "SCI101",
-        //           theoryExam: false,
-        //           practicalExam: true,
-        //           obtainedMarksPractical: 92,
-        //           totalMarksPractical: 100,
-        //           totalMarks: 100,
-        //         },
-        //       ],
-        //     },
-        //   ],
-        //   "Term 2": [
-        //     {
-        //       examEntryId: "2",
-        //       examName: "Final Exam",
-        //       examDate: "2024-12-20",
-        //       examType: "Theory",
-        //       studentPassed: false,
-        //       subjects: [
-        //         {
-        //           name: "Mathematics",
-        //           code: "MATH101",
-        //           theoryExam: true,
-        //           practicalExam: false,
-        //           obtainedMarksTheory: 60,
-        //           totalMarksTheory: 100,
-        //           totalMarks: 100,
-        //         },
-        //         {
-        //           name: "Science",
-        //           code: "SCI101",
-        //           theoryExam: false,
-        //           practicalExam: true,
-        //           obtainedMarksPractical: 70,
-        //           totalMarksPractical: 100,
-        //           totalMarks: 100,
-        //         },
-        //       ],
-        //     },
-        //   ],
-        // }
-        // setExamsByTerm(mockData)
-      } catch (error) {
-        console.error("Failed to fetch exams:", error)
-        toast.error("Failed to fetch exam records")
-      } finally {
-        setIsLoadingExams(false)
-      }
-    }
-
-    // fetchExams()
-  }, [enrollmentData.id])
-
   const handleDeleteEnrollment = async () => {
     setIsDeleting(true)
 
@@ -266,6 +188,35 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
     })
   }
 
+  const handleDeleteExam = async () => {
+    if (!examToDelete) return
+
+    setIsDeletingExam(true)
+
+    console.log("Deleting exam:", examToDelete.examId)
+
+    toast.promise(deleteExamEntry(studentId, enrollmentData.id, examToDelete.examId), {
+      loading: "Deleting exam...",
+      success: (result) => {
+        if (result?.status === "SUCCESS") {
+          setExamToDelete(null)
+          // Use window.location.reload() to ensure the latest data is displayed
+          window.location.reload()
+          return "Exam deleted successfully"
+        } else {
+          throw new Error(result?.message || "Failed to delete exam")
+        }
+      },
+      error: (error) => {
+        console.error("Error deleting exam:", error)
+        return error.message || "An error occurred while deleting exam"
+      },
+      finally: () => {
+        setIsDeletingExam(false)
+      },
+    })
+  }
+
   const handleCopyId = (id: string) => {
     navigator.clipboard.writeText(id)
     toast.success("ID copied to clipboard")
@@ -276,15 +227,13 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
     setEnrollmentData(updatedEnrollment)
     toast.success("Enrollment updated successfully")
 
-    // Reload the page after a short delay to allow the toast to be read
-    setTimeout(() => {
-      router.refresh()
-    }, 1500)
+    // Use window.location.reload() to ensure the latest data is displayed
+    window.location.reload()
   }
 
   const handlePaymentSuccess = () => {
     // Refresh the page to get the latest data
-    router.refresh()
+    window.location.reload()
     toast.success("Payment processed successfully")
   }
 
@@ -938,6 +887,15 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
                               <Button variant="outline" size="sm" onClick={() => handleUpdateExam(exam)}>
                                 Update
                               </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+                                onClick={() => setExamToDelete({ examId: exam.examEntryId, examName: exam.examName })}
+                              >
+                                <Trash2 className="h-4 w-4 mr-1" />
+                                Delete
+                              </Button>
                             </div>
                           </div>
 
@@ -1029,7 +987,12 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
         </TabsContent>
       </Tabs>
 
-      <EditEnrollmentDialog enrollment={enrollmentData} open={editDialogOpen} onOpenChange={setEditDialogOpen} />
+      <EditEnrollmentDialog
+        enrollment={enrollmentData}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        onSuccess={handleEnrollmentUpdated}
+      />
 
       <PayFeesDialog
         enrollment={enrollmentData}
@@ -1064,6 +1027,35 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
         exam={selectedExam}
         onSuccess={refreshEnrollmentData}
       />
+
+      {/* Delete Exam Confirmation Dialog */}
+      <AlertDialog open={!!examToDelete} onOpenChange={(open) => !open && setExamToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Exam</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the exam "{examToDelete?.examName}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingExam}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteExam}
+              disabled={isDeletingExam}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeletingExam ? (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
