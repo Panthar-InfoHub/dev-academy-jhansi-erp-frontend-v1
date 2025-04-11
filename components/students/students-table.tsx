@@ -7,20 +7,9 @@ import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { toast } from "sonner"
-import {
-  Copy,
-  ExternalLink,
-  MoreHorizontal,
-  RefreshCw,
-  Search,
-  Trash2,
-  Calendar,
-  Filter,
-  School,
-  BookOpen,
-} from "lucide-react"
+import { Copy, ExternalLink, MoreHorizontal, RefreshCw, Search, Trash2, Calendar, Filter, School, BookOpen, Plus } from 'lucide-react'
 import { getClassroomStudentsInfo, getClassroomSectionStudentsInfo } from "@/lib/actions/classroom"
-import { deleteStudent } from "@/lib/actions/student"
+import { deleteStudent, createNewStudent } from "@/lib/actions/student"
 import { getAllSectionsOfClassroom } from "@/lib/actions/classroom"
 import type { completeClassDetails, completeClassSectionDetails } from "@/types/classroom"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -36,6 +25,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { format } from "date-fns"
+import { AddStudentDialog } from "@/components/students/add-student-dialog"
 
 interface StudentsTableProps {
   initialClassrooms: completeClassDetails[]
@@ -53,6 +43,7 @@ export function StudentsTable({ initialClassrooms }: StudentsTableProps) {
   const [showActiveOnly, setShowActiveOnly] = useState(true)
   const [studentToDelete, setStudentToDelete] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [addStudentDialogOpen, setAddStudentDialogOpen] = useState(false)
 
   // Generate session options (current year and 4 years back)
   function getSessionOptions() {
@@ -198,8 +189,12 @@ export function StudentsTable({ initialClassrooms }: StudentsTableProps) {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Student Management</CardTitle>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle>Students</CardTitle>
+        <Button onClick={() => setAddStudentDialogOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add Student
+        </Button>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
@@ -418,6 +413,15 @@ export function StudentsTable({ initialClassrooms }: StudentsTableProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Add Student Dialog */}
+      <AddStudentDialog
+        open={addStudentDialogOpen}
+        onOpenChange={setAddStudentDialogOpen}
+        onSuccess={() => {
+          fetchStudents()
+        }}
+      />
     </Card>
   )
 }

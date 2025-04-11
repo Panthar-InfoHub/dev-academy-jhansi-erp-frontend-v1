@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -109,9 +109,7 @@ export function StudentsSearchTable() {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Search Students</CardTitle>
-      </CardHeader>
+      <CardHeader>{/* Title removed as requested */}</CardHeader>
       <CardContent>
         <div className="space-y-4">
           <form onSubmit={handleSearch} className="flex gap-2">

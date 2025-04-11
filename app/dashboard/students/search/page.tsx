@@ -13,7 +13,7 @@ export default async function StudentsSearchPage() {
   return (
     <div className="container mx-auto">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Search Students</h1>
+        <h1 className="text-3xl font-bold">Advanced Search</h1>
       </div>
 
       <StudentsSearchTable />

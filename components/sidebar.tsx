@@ -23,6 +23,8 @@ import {
   ChevronDown,
   ChevronRight,
   ClipboardList,
+  Search,
+  UserPlus,
 } from "lucide-react"
 import type { customUser } from "@/auth"
 import { handleSignOut } from "@/lib/actions/loginActions"
@@ -53,7 +55,9 @@ export function SidebarNav({ user }: SidebarProps) {
   const [mounted, setMounted] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
+    Students: true, // Open by default
+  })
 
   // Ensure theme component only renders after mounting to prevent hydration mismatch
   useEffect(() => {
@@ -75,6 +79,26 @@ export function SidebarNav({ user }: SidebarProps) {
       icon: GraduationCap,
       title: "Students",
       visible: isAdmin || isTeacher,
+      children: [
+        {
+          href: "/dashboard/students",
+          icon: ClipboardList,
+          title: "Student Management",
+          visible: isAdmin || isTeacher,
+        },
+        {
+          href: "/dashboard/students/search",
+          icon: Search,
+          title: "Advanced Search",
+          visible: isAdmin || isTeacher,
+        },
+        {
+          href: "#",
+          icon: UserPlus,
+          title: "Add Student",
+          visible: isAdmin,
+        },
+      ],
     },
     {
       href: "/dashboard/employees",
