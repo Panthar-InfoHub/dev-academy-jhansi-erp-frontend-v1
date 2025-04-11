@@ -8,7 +8,7 @@ import {
 	examEntry, feePayment,
 	newEnrollmentReqBody,
 	payStudentFeeBody,
-	studentAttributes, studentSearchResponse,
+	studentAttributes, StudentPaymentsResponse, studentSearchResponse,
 	updateEnrollmentBody, updateExamEntryReqBody
 } from "@/types/student";
 import axios, { AxiosError } from "axios";
@@ -748,7 +748,48 @@ export async function updateStudentProfileImage(studentId: string, file:File) {
 		}
 	
 	}
+}
+
+export async function getStudentPaymentsInfo(studentId: string, limit: number = 10, page: number = 1) {
+
+	console.log("Fetching student payments info for student: ", studentId)
 	
+	try {
+		const response = await axios.post (
+			`${BACKEND_SERVER_URL}/v1/student/${studentId}/payments`,
+			{
+				limit,
+				page
+			}
+		)
+		const responseData = response.data as StudentPaymentsResponse
+		
+		return parseServerResponse<StudentPaymentsResponse>({
+			status: "SUCCESS",
+			message: responseData.message,
+			data: responseData
+		})
+		
+	}
+	catch (e) {
+		console.error(`Failed to get student payments info for student: ${studentId}`, e)
+		if (e instanceof AxiosError) {
+			if (e.isAxiosError) {
+				console.debug("Get Student Payments Info Error is Axios Error")
+				const errStatus = e.status
+				const responseStatusCode = e.response ? e.response.status : null
+				const responseBody = e.response ? e.response.data : null
+				console.error("Error details : ", { errStatus, responseStatusCode, responseBody })
+				return parseServerResponse<null>({
+					status: "ERROR",
+					message: responseBody.error,
+					data: null
+				})
+			}
+		}
 	
+	}
+
+
 }
 
