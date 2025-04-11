@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon } from 'lucide-react'
+import { CalendarIcon } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
@@ -156,6 +156,7 @@ export function PayFeesDialog({ enrollment, open, onOpenChange, onSuccess, stude
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
+                    id="paidOn"
                     variant="outline"
                     className={cn(
                       "w-full justify-start text-left font-normal",

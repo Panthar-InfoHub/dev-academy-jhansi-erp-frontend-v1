@@ -191,6 +191,7 @@ export function CreateExamDialog({ open, onOpenChange, studentId, enrollmentId, 
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
+                    id="examDate"
                     variant="outline"
                     className={cn(
                       "w-full justify-start text-left font-normal",

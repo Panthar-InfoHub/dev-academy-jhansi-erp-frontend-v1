@@ -227,37 +227,6 @@ export function NewEnrollmentDialog({ student, open, onOpenChange, onSuccess }: 
     setEndDateMonth(new Date(new Date().setFullYear(new Date().getFullYear() + 1)))
   }
 
-  const renderMonthSelect = (date: Date, setDate: (date: Date) => void) => (
-    <div className="flex items-center justify-between px-4 pt-2">
-      <Button variant="outline" size="icon" onClick={() => setDate(subMonths(date, 1))}>
-        <ChevronLeft className="h-4 w-4" />
-      </Button>
-      <div className="text-sm font-medium">{format(date, "MMMM yyyy")}</div>
-      <Button variant="outline" size="icon" onClick={() => setDate(addMonths(date, 1))}>
-        <ChevronRight className="h-4 w-4" />
-      </Button>
-    </div>
-  )
-
-  const renderCalendar = (
-    date: Date,
-    setDate: (date: Date) => void,
-    selected: Date | undefined,
-    onSelect: (date: Date) => void,
-  ) => (
-    <Calendar
-      mode="single"
-      month={date}
-      selected={selected}
-      onSelect={(date) => {
-        if (date) {
-          onSelect(date)
-        }
-      }}
-      initialFocus
-    />
-  )
-
   return (
     <Dialog
       open={open}
@@ -333,6 +302,7 @@ export function NewEnrollmentDialog({ student, open, onOpenChange, onSuccess }: 
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
+                      id="sessionStartDate"
                       variant="outline"
                       className={cn(
                         "w-full justify-start text-left font-normal",
@@ -348,12 +318,36 @@ export function NewEnrollmentDialog({ student, open, onOpenChange, onSuccess }: 
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0">
-                    {renderMonthSelect(startDateMonth, setStartDateMonth)}
-                    {renderCalendar(startDateMonth, setStartDateMonth, formData.sessionStartDate, (date) => {
-                      const newDate = new Date(date)
-                      newDate.setDate(1)
-                      setFormData((prev) => ({ ...prev, sessionStartDate: newDate }))
-                    })}
+                    <div className="flex items-center justify-between px-4 pt-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setStartDateMonth(subMonths(startDateMonth, 1))}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <div className="text-sm font-medium">{format(startDateMonth, "MMMM yyyy")}</div>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setStartDateMonth(addMonths(startDateMonth, 1))}
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <Calendar
+                      mode="single"
+                      month={startDateMonth}
+                      selected={formData.sessionStartDate}
+                      onSelect={(date) => {
+                        if (date) {
+                          const newDate = new Date(date)
+                          newDate.setDate(1)
+                          setFormData((prev) => ({ ...prev, sessionStartDate: newDate }))
+                        }
+                      }}
+                      initialFocus
+                    />
                   </PopoverContent>
                 </Popover>
                 {formErrors.sessionStartDate && <p className="text-sm text-red-500">{formErrors.sessionStartDate}</p>}
@@ -366,6 +360,7 @@ export function NewEnrollmentDialog({ student, open, onOpenChange, onSuccess }: 
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
+                      id="sessionEndDate"
                       variant="outline"
                       className={cn(
                         "w-full justify-start text-left font-normal",
@@ -381,14 +376,29 @@ export function NewEnrollmentDialog({ student, open, onOpenChange, onSuccess }: 
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0">
-                    {renderMonthSelect(endDateMonth, setEndDateMonth)}
-                    {renderCalendar(endDateMonth, setEndDateMonth, formData.sessionEndDate, (date) => {
-                      if (date) {
-                        const newDate = new Date(date)
-                        newDate.setMonth(newDate.getMonth() + 1, 0)
-                        setFormData((prev) => ({ ...prev, sessionEndDate: newDate }))
-                      }
-                    })}
+                    <div className="flex items-center justify-between px-4 pt-2">
+                      <Button variant="outline" size="icon" onClick={() => setEndDateMonth(subMonths(endDateMonth, 1))}>
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <div className="text-sm font-medium">{format(endDateMonth, "MMMM yyyy")}</div>
+                      <Button variant="outline" size="icon" onClick={() => setEndDateMonth(addMonths(endDateMonth, 1))}>
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <Calendar
+                      mode="single"
+                      month={endDateMonth}
+                      selected={formData.sessionEndDate}
+                      onSelect={(date) => {
+                        if (date) {
+                          const newDate = new Date(date)
+                          // Set to last day of the month
+                          newDate.setMonth(newDate.getMonth() + 1, 0)
+                          setFormData((prev) => ({ ...prev, sessionEndDate: newDate }))
+                        }
+                      }}
+                      initialFocus
+                    />
                   </PopoverContent>
                 </Popover>
                 {formErrors.sessionEndDate && <p className="text-sm text-red-500">{formErrors.sessionEndDate}</p>}
