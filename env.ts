@@ -1,4 +1,4 @@
-export const BACKEND_SERVER_URL = process.env.NEXT_PUBLIC_BACKEND_SERVER_URL
+export const BACKEND_SERVER_URL = process.env.NEXT_PUBLIC_BACKEND_SERVER_URL || process.env.BACKEND_SERVER_URL
 
 // School name and other customizable settings
 export const SCHOOL_NAME = "Dev Academy"
