@@ -5,9 +5,9 @@ import { VehicleDetail } from "@/components/vehicles/vehicle-detail"
 import { unstable_noStore as noStore } from "next/cache"
 
 interface VehicleDetailPageProps {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 export default async function VehicleDetailPage({ params }: VehicleDetailPageProps) {
@@ -15,7 +15,8 @@ export default async function VehicleDetailPage({ params }: VehicleDetailPagePro
   noStore()
 
   // Ensure params.id exists before proceeding
-  if (!params?.id) {
+  const resolvedParams = await params
+  if (!resolvedParams?.id) {
     notFound()
   }
 
@@ -26,7 +27,7 @@ export default async function VehicleDetailPage({ params }: VehicleDetailPagePro
     redirect("/dashboard")
   }
 
-  const vehicleId = params.id
+  const vehicleId = (await params).id
   const vehicleResponse = await getVehicle(vehicleId)
 
   if (!vehicleResponse?.data) {
