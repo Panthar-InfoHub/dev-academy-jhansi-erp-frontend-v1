@@ -37,6 +37,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { useSession } from "next-auth/react"
 
 interface EmployeesTableProps {
   initialEmployees: completeEmployeeAttributes[]
@@ -45,6 +46,9 @@ interface EmployeesTableProps {
 
 export function EmployeesTable({ initialEmployees, initialTotalCount }: EmployeesTableProps) {
   const router = useRouter()
+  const { data: session } = useSession()
+  const currentUserId = session?.user?.id
+
   const [employees, setEmployees] = useState<completeEmployeeAttributes[]>(initialEmployees)
   const [totalCount, setTotalCount] = useState(initialTotalCount)
   const [isLoading, setIsLoading] = useState(false)
@@ -99,125 +103,167 @@ export function EmployeesTable({ initialEmployees, initialTotalCount }: Employee
     if (!employeeToDelete) return
 
     setIsActionLoading(true)
-    try {
-      const result = await deleteEmployee(employeeToDelete)
-      if (result?.status === "SUCCESS") {
-        toast.success("Employee deleted successfully")
-        fetchEmployees()
-      } else {
-        toast.error(result?.message || "Failed to delete employee")
-      }
-    } catch (error) {
-      console.error("Error deleting employee:", error)
-      toast.error("An error occurred while deleting employee")
-    } finally {
-      setIsActionLoading(false)
-      setEmployeeToDelete(null)
-    }
+
+    toast.promise(deleteEmployee(employeeToDelete), {
+      loading: "Deleting employee...",
+      success: (result) => {
+        if (result?.status === "SUCCESS") {
+          fetchEmployees()
+          return "Employee deleted successfully"
+        } else {
+          throw new Error(result?.message || "Failed to delete employee")
+        }
+      },
+      error: (error) => {
+        console.error("Error deleting employee:", error)
+        return "An error occurred while deleting employee"
+      },
+      finally: () => {
+        setIsActionLoading(false)
+        setEmployeeToDelete(null)
+      },
+    })
   }
 
   const handleDisableEmployee = async () => {
     if (!employeeToDisable) return
 
     setIsActionLoading(true)
-    try {
-      const result = await updateEmployee({
+
+    toast.promise(
+      updateEmployee({
         id: employeeToDisable,
         isActive: false,
-      })
-      if (result?.status === "SUCCESS") {
-        toast.success("Employee disabled successfully")
-        fetchEmployees()
-      } else {
-        toast.error(result?.message || "Failed to disable employee")
-      }
-    } catch (error) {
-      console.error("Error disabling employee:", error)
-      toast.error("An error occurred while disabling employee")
-    } finally {
-      setIsActionLoading(false)
-      setEmployeeToDisable(null)
-    }
+      }),
+      {
+        loading: "Disabling employee...",
+        success: (result) => {
+          if (result?.status === "SUCCESS") {
+            fetchEmployees()
+            return "Employee disabled successfully"
+          } else {
+            throw new Error(result?.message || "Failed to disable employee")
+          }
+        },
+        error: (error) => {
+          console.error("Error disabling employee:", error)
+          return "An error occurred while disabling employee"
+        },
+        finally: () => {
+          setIsActionLoading(false)
+          setEmployeeToDisable(null)
+        },
+      },
+    )
   }
 
   const handleEnableEmployee = async () => {
     if (!employeeToEnable) return
 
     setIsActionLoading(true)
-    try {
-      const result = await updateEmployee({
+
+    toast.promise(
+      updateEmployee({
         id: employeeToEnable,
         isActive: true,
-      })
-      if (result?.status === "SUCCESS") {
-        toast.success("Employee enabled successfully")
-        fetchEmployees()
-      } else {
-        toast.error(result?.message || "Failed to enable employee")
-      }
-    } catch (error) {
-      console.error("Error enabling employee:", error)
-      toast.error("An error occurred while enabling employee")
-    } finally {
-      setIsActionLoading(false)
-      setEmployeeToEnable(null)
-    }
+      }),
+      {
+        loading: "Enabling employee...",
+        success: (result) => {
+          if (result?.status === "SUCCESS") {
+            fetchEmployees()
+            return "Employee enabled successfully"
+          } else {
+            throw new Error(result?.message || "Failed to enable employee")
+          }
+        },
+        error: (error) => {
+          console.error("Error enabling employee:", error)
+          return "An error occurred while enabling employee"
+        },
+        finally: () => {
+          setIsActionLoading(false)
+          setEmployeeToEnable(null)
+        },
+      },
+    )
   }
 
   const handleFireEmployee = async () => {
     if (!employeeToFire) return
 
     setIsActionLoading(true)
-    try {
-      const result = await updateEmployee({
+
+    toast.promise(
+      updateEmployee({
         id: employeeToFire,
         isFired: true,
         isActive: false, // Also disable the account when firing
-      })
-      if (result?.status === "SUCCESS") {
-        toast.success("Employee fired successfully")
-        fetchEmployees()
-      } else {
-        toast.error(result?.message || "Failed to fire employee")
-      }
-    } catch (error) {
-      console.error("Error firing employee:", error)
-      toast.error("An error occurred while firing employee")
-    } finally {
-      setIsActionLoading(false)
-      setEmployeeToFire(null)
-    }
+      }),
+      {
+        loading: "Processing...",
+        success: (result) => {
+          if (result?.status === "SUCCESS") {
+            fetchEmployees()
+            return "Employee fired successfully"
+          } else {
+            throw new Error(result?.message || "Failed to fire employee")
+          }
+        },
+        error: (error) => {
+          console.error("Error firing employee:", error)
+          return "An error occurred while firing employee"
+        },
+        finally: () => {
+          setIsActionLoading(false)
+          setEmployeeToFire(null)
+        },
+      },
+    )
   }
 
   const handleUnfireEmployee = async () => {
     if (!employeeToUnfire) return
 
     setIsActionLoading(true)
-    try {
-      const result = await updateEmployee({
+
+    toast.promise(
+      updateEmployee({
         id: employeeToUnfire,
         isFired: false,
         isActive: true, // Also enable the account when unfiring
-      })
-      if (result?.status === "SUCCESS") {
-        toast.success("Employee reinstated successfully")
-        fetchEmployees()
-      } else {
-        toast.error(result?.message || "Failed to reinstate employee")
-      }
-    } catch (error) {
-      console.error("Error unfiring employee:", error)
-      toast.error("An error occurred while reinstating employee")
-    } finally {
-      setIsActionLoading(false)
-      setEmployeeToUnfire(null)
-    }
+      }),
+      {
+        loading: "Processing...",
+        success: (result) => {
+          if (result?.status === "SUCCESS") {
+            fetchEmployees()
+            return "Employee reinstated successfully"
+          } else {
+            throw new Error(result?.message || "Failed to reinstate employee")
+          }
+        },
+        error: (error) => {
+          console.error("Error unfiring employee:", error)
+          return "An error occurred while reinstating employee"
+        },
+        finally: () => {
+          setIsActionLoading(false)
+          setEmployeeToUnfire(null)
+        },
+      },
+    )
   }
 
   // Function to truncate ID for display
   const truncateId = (id: string) => {
     if (id.length <= 8) return id
     return `${id.substring(0, 4)}...${id.substring(id.length - 4)}`
+  }
+
+  // Check if the employee is the current user
+  const isCurrentUser = (employeeId: string) => {
+    return employeeId === currentUserId
   }
 
   const totalPages = Math.ceil(totalCount / limit)
@@ -346,9 +392,11 @@ export function EmployeesTable({ initialEmployees, initialTotalCount }: Employee
                                 setEmployeeToDisable(employee.id)
                               }}
                               className="text-amber-600"
+                              disabled={isCurrentUser(employee.id)} // Disable for current user
                             >
                               <Ban className="mr-2 h-4 w-4" />
                               Disable
+                              {isCurrentUser(employee.id) && " (Self)"}
                             </DropdownMenuItem>
                           ) : (
                             <DropdownMenuItem
@@ -357,9 +405,11 @@ export function EmployeesTable({ initialEmployees, initialTotalCount }: Employee
                                 setEmployeeToEnable(employee.id)
                               }}
                               className="text-green-600"
+                              disabled={isCurrentUser(employee.id)} // Disable for current user
                             >
                               <CheckCircle className="mr-2 h-4 w-4" />
                               Enable
+                              {isCurrentUser(employee.id) && " (Self)"}
                             </DropdownMenuItem>
                           )}
 
@@ -370,9 +420,11 @@ export function EmployeesTable({ initialEmployees, initialTotalCount }: Employee
                                 setEmployeeToUnfire(employee.id)
                               }}
                               className="text-green-600"
+                              disabled={isCurrentUser(employee.id)} // Disable for current user
                             >
                               <UserCheck className="mr-2 h-4 w-4" />
                               Reinstate
+                              {isCurrentUser(employee.id) && " (Self)"}
                             </DropdownMenuItem>
                           ) : (
                             <DropdownMenuItem
@@ -381,9 +433,11 @@ export function EmployeesTable({ initialEmployees, initialTotalCount }: Employee
                                 setEmployeeToFire(employee.id)
                               }}
                               className="text-orange-600"
+                              disabled={isCurrentUser(employee.id)} // Disable for current user
                             >
                               <UserX className="mr-2 h-4 w-4" />
                               Fire
+                              {isCurrentUser(employee.id) && " (Self)"}
                             </DropdownMenuItem>
                           )}
 
@@ -393,9 +447,11 @@ export function EmployeesTable({ initialEmployees, initialTotalCount }: Employee
                               setEmployeeToDelete(employee.id)
                             }}
                             className="text-red-600"
+                            disabled={isCurrentUser(employee.id)} // Disable for current user
                           >
                             <Trash2 className="mr-2 h-4 w-4" />
                             Delete
+                            {isCurrentUser(employee.id) && " (Self)"}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>

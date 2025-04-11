@@ -60,20 +60,5 @@ export interface AttendanceDetailEntry {
 
 export interface DailyAttendanceResponse {
   message: string;
-  attendance: {
-	  attendanceId: string;
-	  employeeId: string;
-	  date: string; // Expected format: YYYY-MM-DD
-	  isPresent: boolean;
-	  clockInTime: string | null;
-	  isHoliday: boolean;
-	  isLeave: boolean;
-	  isInvalid: boolean | null;
-	  createdAt: string; // ISO datetime string
-	  updatedAt: string; // ISO datetime string
-  }[];
-}
-
-export interface Attendance {
-
+  attendance: AttendanceDetailEntry[];
 }

@@ -3,7 +3,12 @@ import axios, { AxiosError } from "axios";
 import { BACKEND_SERVER_URL } from "@/env";
 import { parseServerResponse, serverResponseParserArguments } from "@/lib/utils";
 import { revalidatePath } from "next/cache";
-import { completeEmployeeAttributes, DailyAttendanceResponse, EmployeeAttributes } from "@/types/employee";
+import {
+	AttendanceDetailEntry,
+	completeEmployeeAttributes,
+	DailyAttendanceResponse,
+	EmployeeAttributes
+} from "@/types/employee";
 
 //Completed
 export const addNewEmployee = async (formValues: EmployeeAttributes) => {
@@ -363,10 +368,10 @@ export const getEmployeeAttendance = async (employeeId: string, start_date: Date
 
 		console.debug("Response from getEmployeeAttendance: ", response.data)
 
-		return parseServerResponse<DailyAttendanceResponse>({
+		return parseServerResponse<AttendanceDetailEntry[]>({
 			status: "SUCCESS",
 			message: response.data.message,
-			data: response.data as DailyAttendanceResponse
+			data: (response.data as DailyAttendanceResponse).attendance
 		})
 	}
 	catch (e) {

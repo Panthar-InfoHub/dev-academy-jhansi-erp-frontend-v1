@@ -46,26 +46,32 @@ export function EditProfileButton({ employee }: EditProfileButtonProps) {
     e.preventDefault()
     setIsSubmitting(true)
 
-    try {
-      const result = await updateEmployee({
+    toast.promise(
+      updateEmployee({
         id: employee.id,
         ...formData,
-      })
-
-      if (result.status === "SUCCESS") {
-        toast.success("Profile updated successfully")
-        setOpen(false)
-        // Force refresh the page to show updated data
-        window.location.reload()
-      } else {
-        toast.error(result.message || "Failed to update profile")
-      }
-    } catch (error) {
-      toast.error("An error occurred while updating profile")
-      console.error(error)
-    } finally {
-      setIsSubmitting(false)
-    }
+      }),
+      {
+        loading: "Updating profile...",
+        success: (result) => {
+          if (result.status === "SUCCESS") {
+            setOpen(false)
+            // Force refresh the page to show updated data
+            window.location.reload()
+            return "Profile updated successfully"
+          } else {
+            throw new Error(result.message || "Failed to update profile")
+          }
+        },
+        error: (error) => {
+          console.error("Error updating profile:", error)
+          return "An error occurred while updating profile"
+        },
+        finally: () => {
+          setIsSubmitting(false)
+        },
+      },
+    )
   }
 
   return (

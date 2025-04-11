@@ -51,31 +51,35 @@ export function IdManagement({ employee }: IdManagementProps) {
 
   const handleSaveIds = async () => {
     setIsSubmitting(true)
-    try {
-      // Create a copy of the form values to avoid modifying the original data
-      const formData = {
-        id: employee.id,
-        ids: ids,
-      }
 
-      console.log("Saving IDs:", formData)
-
-      const result = await updateEmployee(formData)
-
-      if (result.status === "SUCCESS") {
-        toast.success("Identification documents updated successfully")
-        setHasChanges(false)
-        // Force refresh to show updated data
-        window.location.reload()
-      } else {
-        toast.error(result.message || "Failed to update identification documents")
-      }
-    } catch (error) {
-      toast.error("An error occurred while updating identification documents")
-      console.error(error)
-    } finally {
-      setIsSubmitting(false)
+    // Create a copy of the form values to avoid modifying the original data
+    const formData = {
+      id: employee.id,
+      ids: ids,
     }
+
+    console.log("Saving IDs:", formData)
+
+    toast.promise(updateEmployee(formData), {
+      loading: "Saving identification documents...",
+      success: (result) => {
+        if (result.status === "SUCCESS") {
+          setHasChanges(false)
+          // Force refresh to show updated data
+          window.location.reload()
+          return "Identification documents updated successfully"
+        } else {
+          throw new Error(result.message || "Failed to update identification documents")
+        }
+      },
+      error: (error) => {
+        console.error("Error updating identification documents:", error)
+        return "An error occurred while updating identification documents"
+      },
+      finally: () => {
+        setIsSubmitting(false)
+      },
+    })
   }
 
   return (

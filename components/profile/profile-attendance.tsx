@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Calendar } from "@/components/ui/calendar"
 import { Button } from "@/components/ui/button"
@@ -15,59 +15,91 @@ interface ProfileAttendanceProps {
   employeeId: string
 }
 
+// Cache for attendance data
+interface CacheEntry {
+  data: AttendanceDetailEntry[]
+  timestamp: number
+}
+
+const attendanceCache = new Map<string, CacheEntry>()
+const CACHE_DURATION = 5000 // 5 seconds in milliseconds
+
 export function ProfileAttendance({ employeeId }: ProfileAttendanceProps) {
   const [startDate, setStartDate] = useState<Date>(subMonths(new Date(), 1))
   const [endDate, setEndDate] = useState<Date>(new Date())
   const [isLoading, setIsLoading] = useState(false)
   const [attendanceData, setAttendanceData] = useState<AttendanceDetailEntry[]>([])
 
-  const fetchAttendance = async () => {
-    setIsLoading(true)
-    try {
-      const result = await getEmployeeAttendance(employeeId, startOfDay(startDate), endOfDay(endDate))
+  // Create a cache key based on employee ID and date range
+  const getCacheKey = useCallback(() => {
+    return `${employeeId}_${startDate.toISOString()}_${endDate.toISOString()}`
+  }, [employeeId, startDate, endDate])
 
-      if (result?.status === "SUCCESS" && result.data) {
-        // Check if the data is in the expected format
-        if (result.data.attendance) {
-          setAttendanceData(result.data.attendance || [])
-          toast.success("Attendance data loaded successfully")
-        } else {
-          console.error("Unexpected data format:", result.data)
-          toast.error("Unexpected data format received")
-          setAttendanceData([])
+  const fetchAttendance = useCallback(
+    async (forceRefresh = false) => {
+      setIsLoading(true)
+
+      try {
+        const cacheKey = getCacheKey()
+        const now = Date.now()
+        const cachedData = attendanceCache.get(cacheKey)
+
+        // Use cached data if available and not expired, unless force refresh is requested
+        if (!forceRefresh && cachedData && now - cachedData.timestamp < CACHE_DURATION) {
+          setAttendanceData(cachedData.data)
+          toast.success("Attendance data loaded from cache")
+          setIsLoading(false)
+          return
         }
-      } else {
-        toast.error(result?.message || "Failed to fetch attendance data")
+
+        // If no cache or cache expired, fetch from API
+        const fetchPromise = getEmployeeAttendance(employeeId, startOfDay(startDate), endOfDay(endDate))
+
+        toast.promise(fetchPromise, {
+          loading: "Loading attendance data...",
+          success: (result) => {
+            if (result?.status === "SUCCESS" && result.data) {
+              // Check if the data is in the expected format
+              if (result.data) {
+                const attendanceData = result.data || []
+                setAttendanceData(attendanceData)
+
+                // Cache the result
+                attendanceCache.set(cacheKey, {
+                  data: attendanceData,
+                  timestamp: now,
+                })
+
+                return "Attendance data loaded successfully"
+              } else {
+                throw new Error("Unexpected data format received")
+              }
+            } else {
+              throw new Error(result?.message || "Failed to fetch attendance data")
+            }
+          },
+          error: (error) => {
+            console.error("Error fetching attendance:", error)
+            setAttendanceData([])
+            return "Failed to load attendance data"
+          },
+          finally: () => {
+            setIsLoading(false)
+          },
+        })
+      } catch (error) {
+        toast.error("An error occurred while fetching attendance data")
+        console.error(error)
         setAttendanceData([])
+        setIsLoading(false)
       }
-    } catch (error) {
-      toast.error("An error occurred while fetching attendance data")
-      console.error(error)
-      setAttendanceData([])
-    } finally {
-      setIsLoading(false)
-    }
-  }
+    },
+    [employeeId, startDate, endDate, getCacheKey],
+  )
 
   useEffect(() => {
     fetchAttendance()
-  }, [employeeId])
-
-  // Function to determine day color based on attendance
-  const getDayClassNames = (date: Date) => {
-    const dateStr = format(date, "yyyy-MM-dd")
-    const attendance = attendanceData.find((a) => {
-      const attendanceDate = typeof a.date === "string" ? a.date.split("T")[0] : format(new Date(a.date), "yyyy-MM-dd")
-      return attendanceDate === dateStr
-    })
-
-    if (!attendance) return undefined
-
-    if (attendance.isHoliday) return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-    if (attendance.isLeave) return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-    if (attendance.isPresent) return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-    return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-  }
+  }, [fetchAttendance])
 
   return (
     <div className="space-y-6">
@@ -140,7 +172,7 @@ export function ProfileAttendance({ employeeId }: ProfileAttendanceProps) {
             </div>
           </div>
 
-          <Button onClick={fetchAttendance} disabled={isLoading} className="w-full">
+          <Button onClick={() => fetchAttendance(true)} disabled={isLoading} className="w-full">
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -149,7 +181,7 @@ export function ProfileAttendance({ employeeId }: ProfileAttendanceProps) {
             ) : (
               <>
                 <RefreshCw className="mr-2 h-4 w-4" />
-                Fetch Attendance
+                Refresh Attendance
               </>
             )}
           </Button>

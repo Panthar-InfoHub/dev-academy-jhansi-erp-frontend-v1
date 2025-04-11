@@ -33,22 +33,26 @@ export function UploadProfileImage({ employeeId }: UploadProfileImageProps) {
     }
 
     setIsUploading(true)
-    try {
-      const result = await updateEmployeeProfileImage(employeeId, file)
 
-      if (result?.status === "SUCCESS") {
-        toast.success("Profile image updated successfully")
-        // Force refresh the page to show the new image
-        window.location.reload()
-      } else {
-        toast.error(result?.message || "Failed to update profile image")
-      }
-    } catch (error) {
-      toast.error("An error occurred while updating profile image")
-      console.error(error)
-    } finally {
-      setIsUploading(false)
-    }
+    toast.promise(updateEmployeeProfileImage(employeeId, file), {
+      loading: "Uploading profile image...",
+      success: (result) => {
+        if (result?.status === "SUCCESS") {
+          // Force refresh the page to show the new image
+          window.location.reload()
+          return "Profile image updated successfully"
+        } else {
+          throw new Error(result?.message || "Failed to update profile image")
+        }
+      },
+      error: (error) => {
+        console.error("Error updating profile image:", error)
+        return "An error occurred while updating profile image"
+      },
+      finally: () => {
+        setIsUploading(false)
+      },
+    })
   }
 
   return (

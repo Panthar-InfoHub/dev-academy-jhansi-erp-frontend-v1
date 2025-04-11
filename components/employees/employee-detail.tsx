@@ -28,6 +28,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { useSession } from "next-auth/react"
 
 interface EmployeeDetailProps {
   employee: completeEmployeeAttributes
@@ -35,6 +36,9 @@ interface EmployeeDetailProps {
 
 export function EmployeeDetail({ employee }: EmployeeDetailProps) {
   const router = useRouter()
+  const { data: session } = useSession()
+  const currentUserId = session?.user?.id
+
   const [activeTab, setActiveTab] = useState("details")
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -52,27 +56,42 @@ export function EmployeeDetail({ employee }: EmployeeDetailProps) {
     toast.success("Employee ID copied to clipboard")
   }
 
+  // Check if the employee is the current user
+  const isCurrentUser = employee.id === currentUserId
+
   const handleStatusChange = async (status: { isActive?: boolean; isFired?: boolean }) => {
+    if (isCurrentUser) {
+      toast.error("You cannot modify your own account status")
+      return
+    }
+
     setIsSubmitting(true)
-    try {
-      const result = await updateEmployee({
+
+    toast.promise(
+      updateEmployee({
         id: employee.id,
         ...status,
-      })
-
-      if (result.status === "SUCCESS") {
-        toast.success("Employee status updated successfully")
-        // Refresh the page to show updated data
-        router.refresh()
-      } else {
-        toast.error(result.message || "Failed to update employee status")
-      }
-    } catch (error) {
-      toast.error("An error occurred while updating employee status")
-      console.error(error)
-    } finally {
-      setIsSubmitting(false)
-    }
+      }),
+      {
+        loading: "Updating employee status...",
+        success: (result) => {
+          if (result.status === "SUCCESS") {
+            // Refresh the page to show updated data
+            router.refresh()
+            return "Employee status updated successfully"
+          } else {
+            throw new Error(result.message || "Failed to update employee status")
+          }
+        },
+        error: (error) => {
+          console.error("Error updating employee status:", error)
+          return "An error occurred while updating employee status"
+        },
+        finally: () => {
+          setIsSubmitting(false)
+        },
+      },
+    )
   }
 
   return (
@@ -122,9 +141,10 @@ export function EmployeeDetail({ employee }: EmployeeDetailProps) {
               {employee.isActive ? (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="outline" disabled={isSubmitting}>
+                    <Button variant="outline" disabled={isSubmitting || isCurrentUser}>
                       <Ban className="mr-2 h-4 w-4" />
                       Disable
+                      {isCurrentUser && " (Self)"}
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
@@ -148,9 +168,10 @@ export function EmployeeDetail({ employee }: EmployeeDetailProps) {
               ) : (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="outline" disabled={isSubmitting}>
+                    <Button variant="outline" disabled={isSubmitting || isCurrentUser}>
                       <CheckCircle className="mr-2 h-4 w-4" />
                       Enable
+                      {isCurrentUser && " (Self)"}
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
@@ -176,9 +197,10 @@ export function EmployeeDetail({ employee }: EmployeeDetailProps) {
               {employee.isFired ? (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="outline" disabled={isSubmitting}>
+                    <Button variant="outline" disabled={isSubmitting || isCurrentUser}>
                       <UserCheck className="mr-2 h-4 w-4" />
                       Reinstate
+                      {isCurrentUser && " (Self)"}
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
@@ -202,9 +224,10 @@ export function EmployeeDetail({ employee }: EmployeeDetailProps) {
               ) : (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="outline" disabled={isSubmitting}>
+                    <Button variant="outline" disabled={isSubmitting || isCurrentUser}>
                       <UserX className="mr-2 h-4 w-4" />
                       Fire
+                      {isCurrentUser && " (Self)"}
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>

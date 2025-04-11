@@ -18,9 +18,7 @@ export default async function DashboardLayout({
   const user = session.user as customUser
 
   // If user is not an admin, redirect them to their profile page
-  if (!user.isAdmin && !user.isTeacher && !user.id) {
-    redirect("/")
-  } else if (!user.isAdmin && user.id) {
+  if (!user.isAdmin && user.id) {
     // Teachers and other employees should only see their profile
     redirect(`/dashboard/profile`)
   }
