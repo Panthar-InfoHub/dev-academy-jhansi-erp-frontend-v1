@@ -111,7 +111,7 @@ export async function createClassroom(data: newClassroomRequest) {
 
 }
 
-export async function updateClassroom(data: updateClassroomRequest, classroomId: string,) {
+export async function updateClassroom(data: Partial<updateClassroomRequest>, classroomId: string,) {
 	console.debug("Updating classroom", data)
 
 	try {
@@ -338,7 +338,7 @@ export async function getAllSectionsOfClassroom(classroomId: string) {
 
 		console.debug("Successfully fetched classroom sections with id: ", classroomId, "with response: ", response.data)
 
-		const classSections: completeClassSectionDetails[] = response.data.classSections
+		const classSections: completeClassSectionDetails[] = response.data.sections
 
 		return classSections
 

@@ -5,9 +5,9 @@ import { ClassroomDetail } from "@/components/classroom/classroom-detail"
 import { unstable_noStore as noStore } from "next/cache"
 
 interface ClassroomDetailPageProps {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 export default async function ClassroomDetailPage({ params }: ClassroomDetailPageProps) {
@@ -15,7 +15,8 @@ export default async function ClassroomDetailPage({ params }: ClassroomDetailPag
   noStore()
 
   // Ensure params.id exists before proceeding
-  if (!params?.id) {
+  const resolvedParams = await params
+  if (!resolvedParams?.id) {
     notFound()
   }
 
@@ -26,7 +27,7 @@ export default async function ClassroomDetailPage({ params }: ClassroomDetailPag
     redirect("/dashboard")
   }
 
-  const classroomId = params.id
+  const classroomId = resolvedParams.id
   const classroomData = await getClassroomDetails(classroomId)
   const sections = await getAllSectionsOfClassroom(classroomId)
 

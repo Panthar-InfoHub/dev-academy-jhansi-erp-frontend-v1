@@ -20,7 +20,7 @@ export const updateClassroomSchema = z
 export const createSectionSchema = z.object({
   name: z.string().min(1, "Section name is required"),
   isActive: z.boolean().default(true),
-  defaultFee: z.number().min(0, "Default fee must be a positive number"),
+  defaultFee: z.number().min(0).max(10000000, "Default fee must be between 0 and 10,000,000"),
   subjects: z
     .array(
       z.object({
@@ -37,7 +37,7 @@ export const createSectionSchema = z.object({
 export const updateSectionSchema = z
   .object({
     name: z.string().optional(),
-    defaultFee: z.number().min(1, "Default fee must be at least 1").optional(),
+    defaultFee: z.number().min(0).max(10000000, "Default fee must be between 0 and 10,000,000").optional(),
     isActive: z.boolean().optional(),
     subjects: z
       .array(
