@@ -124,8 +124,6 @@ export function AddStudentDialog({ open, onOpenChange, onSuccess }: AddStudentDi
     })
     setFormErrors({})
     setActiveTab("basic")
-    setNewIdName("")
-    setNewIdValue("")
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -228,7 +226,6 @@ export function AddStudentDialog({ open, onOpenChange, onSuccess }: AddStudentDi
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
-                          id="dateOfBirth"
                           variant="outline"
                           className={cn(
                             "w-full justify-start text-left font-normal",
@@ -399,9 +396,6 @@ export function AddStudentDialog({ open, onOpenChange, onSuccess }: AddStudentDi
           </form>
         </ScrollArea>
         <DialogFooter className="sm:justify-start">
-          <Button type="button" variant="outline" onClick={resetForm} className="mr-2">
-            Reset Form
-          </Button>
           <Button
             type="button"
             variant="secondary"

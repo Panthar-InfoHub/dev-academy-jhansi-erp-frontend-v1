@@ -1,6 +1,6 @@
 import { auth, type customUser } from "@/auth"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { getDashboardAnalytics } from "@/lib/actions/dashboard";
+import { getDashboardAnalytics } from "@/lib/actions/dashboard"
 
 export default async function DashboardPage() {
   const session = await auth()

@@ -156,7 +156,6 @@ export function PayFeesDialog({ enrollment, open, onOpenChange, onSuccess, stude
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
-                    id="paidOn"
                     variant="outline"
                     className={cn(
                       "w-full justify-start text-left font-normal",

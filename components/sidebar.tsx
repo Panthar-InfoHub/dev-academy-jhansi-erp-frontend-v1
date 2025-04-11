@@ -203,13 +203,6 @@ export function SidebarNav({ user }: SidebarProps) {
         )
       }
 
-      // Find the first visible child to navigate to when parent is clicked
-      const firstVisibleChild = item.children.find(
-        (child) => child.visible && (!child.adminOnly || (child.adminOnly && isAdmin)),
-      )
-
-      const firstChildHref = firstVisibleChild ? firstVisibleChild.href : item.href
-
       return (
         <div key={item.title} className="space-y-1">
           <Collapsible
@@ -219,12 +212,10 @@ export function SidebarNav({ user }: SidebarProps) {
           >
             <div className="flex items-center">
               <Link
-                href={firstChildHref}
+                href={item.children[0].href}
                 className={cn(
                   "flex flex-1 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
-                  pathname === item.href || pathname.startsWith(item.href + "/")
-                    ? "bg-accent text-accent-foreground"
-                    : "transparent",
+                  pathname === item.href ? "bg-accent text-accent-foreground" : "transparent",
                 )}
                 onClick={() => isMobileMenuOpen && setIsMobileMenuOpen(false)}
               >
@@ -245,12 +236,10 @@ export function SidebarNav({ user }: SidebarProps) {
           {/* When sidebar is collapsed, show only the icon */}
           {isCollapsed && (
             <Link
-              href={firstChildHref}
+              href={item.children[0].href}
               className={cn(
                 "flex justify-center rounded-md px-0 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
-                pathname === item.href || pathname.startsWith(item.href + "/")
-                  ? "bg-accent text-accent-foreground"
-                  : "transparent",
+                pathname === item.href ? "bg-accent text-accent-foreground" : "transparent",
               )}
               onClick={() => isMobileMenuOpen && setIsMobileMenuOpen(false)}
             >
@@ -268,9 +257,7 @@ export function SidebarNav({ user }: SidebarProps) {
         href={item.href}
         className={cn(
           "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
-          pathname === item.href || pathname.startsWith(item.href + "/")
-            ? "bg-accent text-accent-foreground"
-            : "transparent",
+          pathname === item.href ? "bg-accent text-accent-foreground" : "transparent",
           isCollapsed && "justify-center px-0",
           isNested && "pl-6", // Reduced left padding for nested items
         )}

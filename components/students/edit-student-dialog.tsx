@@ -167,7 +167,6 @@ export function EditStudentDialog({ student, open, onOpenChange, onSuccess }: Ed
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
-                          id="dateOfBirth"
                           variant="outline"
                           className={cn(
                             "w-full justify-start text-left font-normal",

@@ -263,7 +263,6 @@ export function UpdateExamDialog({
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
-                        id="examDate"
                         variant="outline"
                         className={cn(
                           "w-full justify-start text-left font-normal",

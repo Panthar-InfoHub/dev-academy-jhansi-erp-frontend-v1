@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Plus, Trash2, Save } from "lucide-react"
 import { updateStudentDetails } from "@/lib/actions/student"
 import { toast } from "sonner"
-import { identityEntry } from "@/types/employee";
+import type { identityEntry } from "@/types/employee"
 
 interface StudentIdManagementProps {
   student: completeStudentDetails
