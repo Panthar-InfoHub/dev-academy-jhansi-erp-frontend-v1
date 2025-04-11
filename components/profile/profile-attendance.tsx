@@ -9,7 +9,7 @@ import { toast } from "sonner"
 import { format, subMonths, startOfDay, endOfDay } from "date-fns"
 import type { AttendanceDetailEntry } from "@/types/employee"
 import { Badge } from "@/components/ui/badge"
-import { Loader2 } from "lucide-react"
+import { Loader2, RefreshCw } from "lucide-react"
 
 interface ProfileAttendanceProps {
   employeeId: string
@@ -28,12 +28,15 @@ export function ProfileAttendance({ employeeId }: ProfileAttendanceProps) {
 
       if (result?.status === "SUCCESS" && result.data) {
         setAttendanceData(result.data.attendanceData || [])
+        toast.success("Attendance data loaded successfully")
       } else {
         toast.error(result?.message || "Failed to fetch attendance data")
+        setAttendanceData([])
       }
     } catch (error) {
       toast.error("An error occurred while fetching attendance data")
       console.error(error)
+      setAttendanceData([])
     } finally {
       setIsLoading(false)
     }
@@ -44,7 +47,7 @@ export function ProfileAttendance({ employeeId }: ProfileAttendanceProps) {
   }, [employeeId])
 
   // Function to determine day color based on attendance
-  const getDayColor = (date: Date) => {
+  const getDayClassNames = (date: Date) => {
     const dateStr = format(date, "yyyy-MM-dd")
     const attendance = attendanceData.find((a) => a.date.split("T")[0] === dateStr)
 
@@ -120,7 +123,10 @@ export function ProfileAttendance({ employeeId }: ProfileAttendanceProps) {
                 Loading...
               </>
             ) : (
-              "Fetch Attendance"
+              <>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Fetch Attendance
+              </>
             )}
           </Button>
 

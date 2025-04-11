@@ -19,10 +19,10 @@ export default async function DashboardLayout({
   const user = session.user as customUser
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-screen overflow-hidden">
       <SidebarNav user={user} />
-      <div className="flex-1">
-        <header className="border-b bg-background p-4">
+      <div className="flex-1 flex flex-col overflow-auto">
+        <header className="border-b bg-background p-4 sticky top-0 z-10">
           <div className="flex items-center justify-between">
             <h1 className="text-lg font-semibold">{SCHOOL_NAME} ERP</h1>
             <div className="flex items-center gap-4">
@@ -30,8 +30,8 @@ export default async function DashboardLayout({
             </div>
           </div>
         </header>
-        <main className="p-4">{children}</main>
-        <Toaster position="top-right" />
+        <main className="flex-1 p-6 overflow-auto">{children}</main>
+        <Toaster position="top-right" richColors />
       </div>
     </div>
   )

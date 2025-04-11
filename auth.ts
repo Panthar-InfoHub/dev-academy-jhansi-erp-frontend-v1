@@ -23,11 +23,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
     Credentials({
       credentials: {
-        email: {},
+        username: {},
         password: {},
       },
       async authorize(credentials) {
-        const userJWT = await handleEmployeeLogin(credentials.email as string, credentials.password as string)
+        const userJWT = await handleEmployeeLogin(credentials.username as string, credentials.password as string)
         if (!userJWT) return null
 
         const decodedJWT = decode(userJWT)

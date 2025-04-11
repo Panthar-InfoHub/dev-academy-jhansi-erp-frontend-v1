@@ -38,14 +38,8 @@ export function UploadProfileImage({ employeeId }: UploadProfileImageProps) {
 
       if (result?.status === "SUCCESS") {
         toast.success("Profile image updated successfully")
-        // Force refresh the image by adding a timestamp query parameter
-        const profileImg = document.querySelector(`img[alt="${employeeId}"]`) as HTMLImageElement
-        if (profileImg) {
-          profileImg.src = `${profileImg.src.split("?")[0]}?t=${Date.now()}`
-        } else {
-          // Refresh the page to show the new image
-          window.location.reload()
-        }
+        // Force refresh the page to show the new image
+        window.location.reload()
       } else {
         toast.error(result?.message || "Failed to update profile image")
       }
