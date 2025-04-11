@@ -28,3 +28,11 @@ export interface subject {
 	theoryExam: boolean;
 	practicalExam: boolean;
 }
+
+export interface completeSubjectDetails extends subject {
+	obtainedMarksPractical: number,
+	obtainedMarksTheory: number,
+	totalMarksTheory: number,
+	totalMarksPractical: number,
+	totalMarks: number
+}

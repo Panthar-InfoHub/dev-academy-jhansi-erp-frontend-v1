@@ -2,15 +2,27 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import type { completeStudentEnrollment, monthlyFeeEntry } from "@/types/student"
+import type { completeStudentEnrollment, monthlyFeeEntry, examEntry, examEntrySubject } from "@/types/student"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { format, isBefore, isAfter } from "date-fns"
 import { toast } from "sonner"
-import { ArrowLeft, Pencil, Trash2, Copy, BookOpen, CreditCard, Receipt, Calendar, Clock } from 'lucide-react'
-import { deleteEnrollment } from "@/lib/actions/student"
+import {
+  ArrowLeft,
+  Pencil,
+  Trash2,
+  Copy,
+  BookOpen,
+  CreditCard,
+  Receipt,
+  Calendar,
+  Clock,
+  Plus,
+  RefreshCw,
+} from "lucide-react"
+import { deleteEnrollment, getEnrollmentDetails } from "@/lib/actions/student"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,6 +41,10 @@ import { PayFeesDialog } from "./pay-fees-dialog"
 import { PaymentReceiptDialog } from "./payment-receipt-dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { BACKEND_SERVER_URL } from "@/env"
+import { cn } from "@/lib/utils"
+import { CreateExamDialog } from "./create-exam-dialog"
+import { UpdateExamDialog } from "./update-exam-dialog"
+import { completeSubjectDetails, subject } from "@/types/classroom";
 
 interface EnrollmentDetailProps {
   enrollment: completeStudentEnrollment
@@ -52,6 +68,11 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false)
   const [enrollmentData, setEnrollmentData] = useState<completeStudentEnrollment>(enrollment)
   const [allFeesPaid, setAllFeesPaid] = useState(false)
+  const [createExamDialogOpen, setCreateExamDialogOpen] = useState(false)
+  const [updateExamDialogOpen, setUpdateExamDialogOpen] = useState(false)
+  const [selectedExam, setSelectedExam] = useState<examEntry | null>(null)
+  const [isLoadingExams, setIsLoadingExams] = useState(false)
+  const [examsByTerm, setExamsByTerm] = useState<Record<string, examEntry[]>>({})
 
   // Get student initials for avatar
   const studentName = enrollmentData.student?.name || "Student"
@@ -102,6 +123,125 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
       setAllFeesPaid(dueAmount === 0 && totalAmount === paidAmount)
     }
   }, [enrollmentData.monthlyFees])
+
+  useEffect(() => {
+    if (enrollmentData.examDetails) {
+      organizeExamsByTerm(enrollmentData.examDetails)
+    }
+  }, [enrollmentData.examDetails])
+
+  const organizeExamsByTerm = (exams: examEntry[]) => {
+    const groupedExams: Record<string, examEntry[]> = {}
+
+    exams.forEach((exam) => {
+      const term = exam.note || "Uncategorized"
+      if (!groupedExams[term]) {
+        groupedExams[term] = []
+      }
+      groupedExams[term].push(exam)
+    })
+
+    // Sort terms in order (Term I, Term II, Term III, Term IV, others)
+    const sortedGroupedExams: Record<string, examEntry[]> = {}
+    const termOrder = ["Term I", "Term II", "Term III", "Term IV"]
+
+    // Add terms in order
+    termOrder.forEach((term) => {
+      if (groupedExams[term]) {
+        sortedGroupedExams[term] = groupedExams[term]
+        delete groupedExams[term]
+      }
+    })
+
+    // Add remaining terms
+    Object.keys(groupedExams)
+      .sort()
+      .forEach((term) => {
+        sortedGroupedExams[term] = groupedExams[term]
+      })
+
+    setExamsByTerm(sortedGroupedExams)
+  }
+
+  useEffect(() => {
+    const fetchExams = async () => {
+      setIsLoadingExams(true)
+      try {
+        // const response = await fetch(`/api/exams?enrollmentId=${enrollmentData.id}`);
+        // const data = await response.json();
+        // setExamsByTerm(data);
+        // Mock data for testing
+        // const mockData = {
+        //   "Term 1": [
+        //     {
+        //       examEntryId: "1",
+        //       examName: "Midterm Exam",
+        //       examDate: "2024-08-15",
+        //       examType: "Theory",
+        //       studentPassed: true,
+        //       subjects: [
+        //         {
+        //           name: "Mathematics",
+        //           code: "MATH101",
+        //           theoryExam: true,
+        //           practicalExam: false,
+        //           obtainedMarksTheory: 85,
+        //           totalMarksTheory: 100,
+        //           totalMarks: 100,
+        //         },
+        //         {
+        //           name: "Science",
+        //           code: "SCI101",
+        //           theoryExam: false,
+        //           practicalExam: true,
+        //           obtainedMarksPractical: 92,
+        //           totalMarksPractical: 100,
+        //           totalMarks: 100,
+        //         },
+        //       ],
+        //     },
+        //   ],
+        //   "Term 2": [
+        //     {
+        //       examEntryId: "2",
+        //       examName: "Final Exam",
+        //       examDate: "2024-12-20",
+        //       examType: "Theory",
+        //       studentPassed: false,
+        //       subjects: [
+        //         {
+        //           name: "Mathematics",
+        //           code: "MATH101",
+        //           theoryExam: true,
+        //           practicalExam: false,
+        //           obtainedMarksTheory: 60,
+        //           totalMarksTheory: 100,
+        //           totalMarks: 100,
+        //         },
+        //         {
+        //           name: "Science",
+        //           code: "SCI101",
+        //           theoryExam: false,
+        //           practicalExam: true,
+        //           obtainedMarksPractical: 70,
+        //           totalMarksPractical: 100,
+        //           totalMarks: 100,
+        //         },
+        //       ],
+        //     },
+        //   ],
+        // }
+        // setExamsByTerm(mockData)
+      } catch (error) {
+        console.error("Failed to fetch exams:", error)
+        toast.error("Failed to fetch exam records")
+      } finally {
+        setIsLoadingExams(false)
+      }
+    }
+
+    // fetchExams()
+  }, [enrollmentData.id])
 
   const handleDeleteEnrollment = async () => {
     setIsDeleting(true)
@@ -164,6 +304,43 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
   const showPaymentReceipt = (payment: any) => {
     setSelectedPayment(payment)
     setReceiptDialogOpen(true)
+  }
+
+  const handleUpdateExam = (exam: examEntry) => {
+    setSelectedExam(exam)
+    setUpdateExamDialogOpen(true)
+  }
+
+  const refreshEnrollmentData = async () => {
+    setIsLoadingExams(true)
+    try {
+      const result = await getEnrollmentDetails(studentId, enrollmentData.id)
+      if (result?.status === "SUCCESS" && result.data) {
+        setEnrollmentData(result.data)
+        organizeExamsByTerm(result.data.examDetails || [])
+      } else {
+        toast.error("Failed to refresh enrollment data")
+      }
+    } catch (error) {
+      console.error("Error refreshing enrollment data:", error)
+      toast.error("An error occurred while refreshing enrollment data")
+    } finally {
+      setIsLoadingExams(false)
+    }
+  }
+
+  const calculateObtainedTotal = (subject: examEntrySubject) => {
+    let total = 0
+
+    if (subject.theoryExam && subject.obtainedMarksTheory !== null) {
+      total += subject.obtainedMarksTheory
+    }
+
+    if (subject.practicalExam && subject.obtainedMarksPractical !== null) {
+      total += subject.obtainedMarksPractical
+    }
+
+    return total
   }
 
   return (
@@ -683,7 +860,6 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                
                                     onClick={() => showPaymentReceipt(payment)}
                                     className="flex items-center gap-1"
                                   >
@@ -712,20 +888,148 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
         <TabsContent value="exams" className="mt-4 space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Exams</CardTitle>
+              <div className="flex justify-between items-center">
+                <CardTitle>Examination Results</CardTitle>
+                <Button
+                  variant="outline"
+                  onClick={() => setCreateExamDialogOpen(true)}
+                  disabled={!enrollmentData.isActive}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  New Exam Entry
+                </Button>
+              </div>
+              <CardDescription>Academic performance in theory and practical examinations</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground">Exam information will be displayed here.</p>
+              {isLoadingExams ? (
+                <div className="flex justify-center py-8">
+                  <RefreshCw className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : examsByTerm && Object.keys(examsByTerm).length > 0 ? (
+                <div className="space-y-8">
+                  {Object.entries(examsByTerm).map(([term, exams]) => (
+                    <div key={term} className="space-y-4">
+                      <h3 className="text-xl font-semibold">{term}</h3>
+                      {exams.map((exam) => (
+                        <div key={exam.examEntryId} className="border rounded-lg p-4">
+                          <div className="flex justify-between items-center mb-4">
+                            <div>
+                              <h4 className="text-lg font-medium">{exam.examName}</h4>
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Calendar className="h-4 w-4" />
+                                {format(new Date(exam.examDate), "MMMM d, yyyy")}
+                                <span className="px-2 py-0.5 rounded-full bg-muted text-xs">{exam.examType}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {exam.studentPassed !== undefined && (
+                                <Badge
+                                  variant={exam.studentPassed ? "default" : "destructive"}
+                                  className={
+                                    exam.studentPassed
+                                      ? "bg-green-100 text-green-800 hover:bg-green-100/80 dark:bg-green-900 dark:text-green-300"
+                                      : ""
+                                  }
+                                >
+                                  {exam.studentPassed ? "Passed" : "Failed"}
+                                </Badge>
+                              )}
+                              <Button variant="outline" size="sm" onClick={() => handleUpdateExam(exam)}>
+                                Update
+                              </Button>
+                            </div>
+                          </div>
+
+                          {exam.subjects && exam.subjects.length > 0 && (
+                            <div className="space-y-2">
+                              <h5 className="font-medium mb-2">Subjects</h5>
+                              {exam.subjects.map((subject: completeSubjectDetails, index) => (
+                                <div key={index} className="border rounded p-3">
+                                  <div className="flex justify-between items-center mb-2">
+                                    <div className="flex items-center gap-2">
+                                      <h6 className="font-medium">{subject.name}</h6>
+                                      <span className="text-xs text-muted-foreground">Code: {subject.code}</span>
+                                    </div>
+                                    <div className="flex gap-2">
+                                      {subject.theoryExam && (
+                                        <Badge
+                                          variant="outline"
+                                          className="bg-blue-100 text-blue-800 hover:bg-blue-100/80 dark:bg-blue-900 dark:text-blue-300"
+                                        >
+                                          Theory
+                                        </Badge>
+                                      )}
+                                      {subject.practicalExam && (
+                                        <Badge
+                                          variant="outline"
+                                          className="bg-green-100 text-green-800 hover:bg-green-100/80 dark:bg-green-900 dark:text-green-300"
+                                        >
+                                          Practical
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                                    {subject.theoryExam && (
+                                      <div>
+                                        <span className="text-muted-foreground">Theory: </span>
+                                        <span className="font-medium">
+                                          {subject.obtainedMarksTheory !== null ? subject.obtainedMarksTheory : "-"}/
+                                          {subject.totalMarksTheory !== null ? subject.totalMarksTheory : "-"}
+                                        </span>
+                                      </div>
+                                    )}
+
+                                    {subject.practicalExam && (
+                                      <div>
+                                        <span className="text-muted-foreground">Practical: </span>
+                                        <span className="font-medium">
+                                          {subject.obtainedMarksPractical !== null
+                                            ? subject.obtainedMarksPractical
+                                            : "-"}
+                                          /{subject.totalMarksPractical !== null ? subject.totalMarksPractical : "-"}
+                                        </span>
+                                      </div>
+                                    )}
+
+                                    <div
+                                      className={cn(
+                                        "sm:col-span-2",
+                                        (!subject.theoryExam || !subject.practicalExam) && "sm:col-span-1",
+                                      )}
+                                    >
+                                      <span className="text-muted-foreground">Total: </span>
+                                      <span className="font-medium">
+                                        {calculateObtainedTotal(subject)}/{subject.totalMarks || 0}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground mb-4">No exam records found for this enrollment</p>
+                  <Button onClick={() => setCreateExamDialogOpen(true)} disabled={!enrollmentData.isActive}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create First Exam
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
 
-      <EditEnrollmentDialog
-        enrollment={enrollmentData}
-        open={editDialogOpen}
-        onOpenChange={setEditDialogOpen}
-      />
+      <EditEnrollmentDialog enrollment={enrollmentData} open={editDialogOpen} onOpenChange={setEditDialogOpen} />
 
       <PayFeesDialog
         enrollment={enrollmentData}
@@ -735,13 +1039,30 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
         studentId={studentId}
       />
 
-      <PaymentReceiptDialog 
-        open={receiptDialogOpen} 
-        onOpenChange={setReceiptDialogOpen} 
+      <PaymentReceiptDialog
+        open={receiptDialogOpen}
+        onOpenChange={setReceiptDialogOpen}
         payment={selectedPayment}
         studentName={studentName}
         className={enrollmentData.classRoom?.name}
         sectionName={enrollmentData.classSection?.name}
+      />
+
+      <CreateExamDialog
+        open={createExamDialogOpen}
+        onOpenChange={setCreateExamDialogOpen}
+        studentId={studentId}
+        enrollmentId={enrollmentData.id}
+        onSuccess={refreshEnrollmentData}
+      />
+
+      <UpdateExamDialog
+        open={updateExamDialogOpen}
+        onOpenChange={setUpdateExamDialogOpen}
+        studentId={studentId}
+        enrollmentId={enrollmentData.id}
+        exam={selectedExam}
+        onSuccess={refreshEnrollmentData}
       />
     </div>
   )
