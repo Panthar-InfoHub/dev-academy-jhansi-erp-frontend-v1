@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useState } from "react"
 import type { completeEmployeeAttributes } from "@/types/employee.d"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -9,7 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { format } from "date-fns"
 import { toast } from "sonner"
-import { Copy, Ban, CheckCircle, UserX, UserCheck } from "lucide-react"
+import { Copy, Ban, CheckCircle, UserX, UserCheck, DollarSign } from "lucide-react"
 import { BACKEND_SERVER_URL } from "@/env"
 import { updateEmployee } from "@/lib/actions/employee"
 import { useRouter } from "next/navigation"
@@ -29,6 +31,18 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { useSession } from "next-auth/react"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { updateSalarySchema } from "@/lib/validation"
 
 interface EmployeeDetailProps {
   employee: completeEmployeeAttributes
@@ -41,6 +55,9 @@ export function EmployeeDetail({ employee }: EmployeeDetailProps) {
 
   const [activeTab, setActiveTab] = useState("details")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [salaryDialogOpen, setSalaryDialogOpen] = useState(false)
+  const [newSalary, setNewSalary] = useState(employee.salary.toString())
+  const [salaryError, setSalaryError] = useState("")
 
   const initials = employee.name
     .split(" ")
@@ -62,6 +79,12 @@ export function EmployeeDetail({ employee }: EmployeeDetailProps) {
   const handleStatusChange = async (status: { isActive?: boolean; isFired?: boolean }) => {
     if (isCurrentUser) {
       toast.error("You cannot modify your own account status")
+      return
+    }
+
+    // If trying to enable a fired employee, show error
+    if (status.isActive === true && employee.isFired && !status.isFired) {
+      toast.error("Cannot enable a fired employee. Please reinstate the employee first.")
       return
     }
 
@@ -92,6 +115,56 @@ export function EmployeeDetail({ employee }: EmployeeDetailProps) {
         },
       },
     )
+  }
+
+  const handleSalaryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewSalary(e.target.value)
+    setSalaryError("")
+  }
+
+  const handleSalarySubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    try {
+      // Validate the salary
+      const parsedSalary = Number.parseFloat(newSalary)
+      const validationResult = updateSalarySchema.safeParse({ salary: parsedSalary })
+
+      if (!validationResult.success) {
+        setSalaryError(validationResult.error.errors[0]?.message || "Invalid salary")
+        return
+      }
+
+      setIsSubmitting(true)
+
+      toast.promise(
+        updateEmployee({
+          id: employee.id,
+          salary: parsedSalary,
+        }),
+        {
+          loading: "Updating salary...",
+          success: (result) => {
+            if (result.status === "SUCCESS") {
+              setSalaryDialogOpen(false)
+              router.refresh()
+              return "Salary updated successfully"
+            } else {
+              throw new Error(result.message || "Failed to update salary")
+            }
+          },
+          error: (error) => {
+            console.error("Error updating salary:", error)
+            return "An error occurred while updating salary"
+          },
+          finally: () => {
+            setIsSubmitting(false)
+          },
+        },
+      )
+    } catch (error) {
+      setSalaryError("Please enter a valid number")
+    }
   }
 
   return (
@@ -138,6 +211,49 @@ export function EmployeeDetail({ employee }: EmployeeDetailProps) {
             <div className="flex flex-wrap gap-2 mt-4 md:mt-0">
               <EditProfileButton employee={employee} />
 
+              {/* Salary Update Dialog */}
+              <Dialog open={salaryDialogOpen} onOpenChange={setSalaryDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline">
+                    <DollarSign className="mr-2 h-4 w-4" />
+                    Update Salary
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Update Salary</DialogTitle>
+                    <DialogDescription>
+                      Enter the new salary for {employee.name}. Current salary: ₹{employee.salary.toLocaleString()}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handleSalarySubmit}>
+                    <div className="grid gap-4 py-4">
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="salary" className="text-right">
+                          Salary (₹)
+                        </Label>
+                        <Input
+                          id="salary"
+                          type="number"
+                          value={newSalary}
+                          onChange={handleSalaryChange}
+                          className="col-span-3"
+                          min="0"
+                          step="1000"
+                          required
+                        />
+                      </div>
+                      {salaryError && <p className="text-sm text-red-500 col-start-2 col-span-3">{salaryError}</p>}
+                    </div>
+                    <DialogFooter>
+                      <Button type="submit" disabled={isSubmitting}>
+                        {isSubmitting ? "Updating..." : "Update Salary"}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+
               {employee.isActive ? (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
@@ -168,10 +284,15 @@ export function EmployeeDetail({ employee }: EmployeeDetailProps) {
               ) : (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="outline" disabled={isSubmitting || isCurrentUser}>
+                    <Button
+                      variant="outline"
+                      disabled={isSubmitting || isCurrentUser || employee.isFired}
+                      title={employee.isFired ? "Cannot enable a fired employee. Please reinstate first." : ""}
+                    >
                       <CheckCircle className="mr-2 h-4 w-4" />
                       Enable
                       {isCurrentUser && " (Self)"}
+                      {employee.isFired && " (Fired)"}
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>

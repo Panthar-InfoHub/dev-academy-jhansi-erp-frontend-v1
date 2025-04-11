@@ -23,57 +23,50 @@ export function AttendanceReport() {
 
   const fetchAttendance = async () => {
     setIsLoading(true)
+    try {
+      const result = await getDailyAttendance(selectedDate)
 
-    toast.promise(getDailyAttendance(selectedDate), {
-      loading: "Loading attendance data...",
-      success: (result) => {
-        if (result?.status === "SUCCESS" && result.data) {
-          // Check if the data is in the expected format
-          if (result.data.attendanceData) {
-            setAttendanceData(result.data.attendanceData || [])
-          } else if (result.data.attendance) {
-            setAttendanceData(result.data.attendance || [])
-          } else {
-            console.error("Unexpected data format:", result.data)
-            setAttendanceData([])
-          }
-          return "Attendance data loaded successfully"
+      if (result?.status === "SUCCESS" && result.data) {
+        // Check if the data is in the expected format
+        if (result.data.attendanceData) {
+          setAttendanceData(result.data.attendanceData || [])
+        } else if (result.data.attendance) {
+          setAttendanceData(result.data.attendance || [])
         } else {
-          throw new Error(result?.message || "Failed to fetch attendance data")
+          console.error("Unexpected data format:", result.data)
+          setAttendanceData([])
         }
-      },
-      error: (error) => {
-        console.error("Error fetching attendance:", error)
+        toast.success("Attendance data loaded successfully")
+      } else {
+        toast.error(result?.message || "Failed to fetch attendance data")
         setAttendanceData([])
-        return "Failed to load attendance data"
-      },
-      finally: () => {
-        setIsLoading(false)
-      },
-    })
+      }
+    } catch (error) {
+      toast.error("An error occurred while fetching attendance data")
+      console.error(error)
+      setAttendanceData([])
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const generateAttendance = async () => {
     setIsGenerating(true)
+    try {
+      const result = await generateDailyAttendanceEntries()
 
-    toast.promise(generateDailyAttendanceEntries(), {
-      loading: "Generating attendance entries...",
-      success: (result) => {
-        if (result?.status === "SUCCESS") {
-          fetchAttendance()
-          return "Attendance entries generated successfully"
-        } else {
-          throw new Error(result?.message || "Failed to generate attendance entries")
-        }
-      },
-      error: (error) => {
-        console.error("Error generating attendance entries:", error)
-        return "Failed to generate attendance entries"
-      },
-      finally: () => {
-        setIsGenerating(false)
-      },
-    })
+      if (result?.status === "SUCCESS") {
+        toast.success("Attendance entries generated successfully")
+        fetchAttendance()
+      } else {
+        toast.error(result?.message || "Failed to generate attendance entries")
+      }
+    } catch (error) {
+      toast.error("An error occurred while generating attendance entries")
+      console.error(error)
+    } finally {
+      setIsGenerating(false)
+    }
   }
 
   useEffect(() => {
@@ -175,11 +168,12 @@ export function AttendanceReport() {
                         </Badge>
                       </TableCell>
                       <TableCell>
+                        {/* Fix: Use custom styling instead of invalid "warning" variant */}
                         <Badge
                           variant="outline"
                           className={cn(
                             attendance.isLeave &&
-                              "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+                              "bg-yellow-100 text-yellow-800 hover:bg-yellow-100/80 dark:bg-yellow-900 dark:text-yellow-200",
                           )}
                         >
                           {attendance.isLeave ? "Yes" : "No"}

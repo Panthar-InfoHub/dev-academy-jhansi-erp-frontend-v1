@@ -4,9 +4,20 @@ import { notFound, redirect } from "next/navigation"
 import { EmployeeDetail } from "@/components/employees/employee-detail"
 import { unstable_noStore as noStore } from "next/cache"
 
-export default async function EmployeeDetailPage({ params }: { params: { id: string } }) {
+interface EmployeeDetailPageProps {
+  params: {
+    id: string
+  }
+}
+
+export default async function EmployeeDetailPage({ params }: EmployeeDetailPageProps) {
   // Disable caching to ensure we always get fresh data
   noStore()
+
+  // Ensure params.id exists before proceeding
+  if (!params?.id) {
+    notFound()
+  }
 
   const session = await auth()
   const user = session?.user as customUser
