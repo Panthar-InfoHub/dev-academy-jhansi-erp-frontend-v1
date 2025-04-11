@@ -2,9 +2,10 @@
 import { BACKEND_SERVER_URL } from "@/env";
 import { parseServerResponse } from "@/lib/utils";
 import { classroom, classSection, completeClassDetails, completeClassSectionDetails, subject } from "@/types/classroom";
-import { completeStudentDetails } from "@/types/student";
+import { completeStudentDetails, completeStudentDetailsWithTimestamp, studentAttributes } from "@/types/student";
 import axios, { AxiosError } from "axios";
 import { revalidatePath } from "next/cache";
+import { identityEntry } from "@/types/employee";
 
 interface newClassroomRequest extends Partial<classroom> {
 	name: string
@@ -17,40 +18,39 @@ interface updateClassroomRequest extends Partial<classroom> {
 }
 
 
-interface classroomStudentDataWithFees {
-	id: string;
-	studentId: string;
-	sessionStart: string; // ISO date format as string
-	sessionEnd: string;   // ISO date format as string
-	monthlyFee: number;
-	isActive: boolean;
-	student: completeStudentDetails,
-	classSection: {
-		id: string;
-		classRoomId: string;
-		name: string;
-		isActive: boolean;
-		defaultFee: number;
-	};
-	feeDueTotal: number;
-	feeCompletelyPaid: boolean;
-	lastPaymentDate: string | null; // ISO date format as string or null
-}
+export interface classroomStudentDataWithFees {
+    id: string;
+    studentId: string;
+    classroomSectionId: string;
+    sessionStart: string;
+    sessionEnd: string;
+    monthlyFee: number;
+    isActive: boolean;
+    student: completeStudentDetailsWithTimestamp;
+    classSection: {
+      id: string;
+      name: string;
+      isActive: boolean;
+    };
+    feeDueTotal: number;
+    feeCompletelyPaid: boolean;
+    lastPaymentDate: string | null;
+}[]
 
 
-interface classroomSectionStudentDataWithFees {
-	id: string;
-	studentId: string;
-	classroomSectionId: string;
-	sessionStart: string; // ISO date format as string
-	sessionEnd: string;   // ISO date format as string
-	monthlyFee: number;
-	isActive: boolean;
-	student: completeStudentDetails,
-	feeDueTotal: number;
-	feeCompletelyPaid: boolean;
-	lastPaymentDate: string | null; // ISO date format as string or null
-}
+export interface classroomSectionStudentDataWithFees {
+    id: string;
+    studentId: string;
+    classroomSectionId: string;
+    sessionStart: string; // ISO string format
+    sessionEnd: string;   // ISO string format
+    monthlyFee: number;
+    isActive: boolean;
+    student: completeStudentDetailsWithTimestamp;
+    feeDueTotal: number;
+    feeCompletelyPaid: boolean;
+    lastPaymentDate: string | null;
+}[];
 
 //Completed
 export async function createClassroom(data: newClassroomRequest) {

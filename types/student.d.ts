@@ -14,8 +14,8 @@ export interface studentAttributes {
 	classSectionId: string,
 	ids: identityEntry[],
 	isActive: boolean,
-	studentEnrollments: completeStudentEnrollment[],
-	examEntries: examEntry[]
+	studentEnrollments?: completeStudentEnrollment[],
+	examEntries?: examEntry[]
 }
 
 export interface StudentSearchDetails {
@@ -45,6 +45,11 @@ export interface studentSearchResponse {
 
 export interface completeStudentDetails extends studentAttributes  {
 	id: string
+}
+
+export interface completeStudentDetailsWithTimestamp extends completeStudentDetails {
+	createdAt: string; // ISO string format
+	updatedAt: string;
 }
 
 
