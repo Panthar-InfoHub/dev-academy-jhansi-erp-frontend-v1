@@ -755,11 +755,13 @@ export async function getStudentPaymentsInfo(studentId: string, limit: number = 
 	console.log("Fetching student payments info for student: ", studentId)
 	
 	try {
-		const response = await axios.post (
+		const response = await axios.get (
 			`${BACKEND_SERVER_URL}/v1/student/${studentId}/payments`,
 			{
-				limit,
-				page
+				params: {
+					limit,
+					page
+				}
 			}
 		)
 		const responseData = response.data as StudentPaymentsResponse

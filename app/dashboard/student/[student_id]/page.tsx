@@ -5,9 +5,9 @@ import { StudentDetail } from "@/components/students/student-detail"
 import { unstable_noStore as noStore } from "next/cache"
 
 interface StudentDetailPageProps {
-  params: {
+  params: Promise<{
     student_id: string
-  }
+  }>
 }
 
 export default async function StudentDetailPage({ params }: StudentDetailPageProps) {
@@ -15,7 +15,8 @@ export default async function StudentDetailPage({ params }: StudentDetailPagePro
   noStore()
 
   // Ensure params.student_id exists before proceeding
-  if (!params?.student_id) {
+  const resolvedParams = await params
+  if (!resolvedParams?.student_id) {
     notFound()
   }
 
@@ -26,7 +27,7 @@ export default async function StudentDetailPage({ params }: StudentDetailPagePro
     redirect("/dashboard")
   }
 
-  const studentId = params.student_id
+  const studentId = resolvedParams.student_id
   const studentResponse = await getStudent(studentId)
 
   if (!studentResponse?.data) {
