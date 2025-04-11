@@ -24,7 +24,6 @@ import {
   ChevronRight,
   ClipboardList,
   Search,
-  UserPlus,
 } from "lucide-react"
 import type { customUser } from "@/auth"
 import { handleSignOut } from "@/lib/actions/loginActions"
@@ -89,14 +88,8 @@ export function SidebarNav({ user }: SidebarProps) {
         {
           href: "/dashboard/students/search",
           icon: Search,
-          title: "Advanced Search",
+          title: "Search",
           visible: isAdmin || isTeacher,
-        },
-        {
-          href: "#",
-          icon: UserPlus,
-          title: "Add Student",
-          visible: isAdmin,
         },
       ],
     },
@@ -173,7 +166,7 @@ export function SidebarNav({ user }: SidebarProps) {
               "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
               pathname === item.href ? "bg-accent text-accent-foreground" : "transparent",
               isCollapsed && "justify-center px-0",
-              isNested && "pl-9",
+              isNested && "pl-6", // Reduced left padding for nested items
             )}
             onClick={() => isMobileMenuOpen && setIsMobileMenuOpen(false)}
           >
@@ -208,7 +201,7 @@ export function SidebarNav({ user }: SidebarProps) {
                 </Button>
               </CollapsibleTrigger>
             </div>
-            <CollapsibleContent className="pl-4 pt-1">
+            <CollapsibleContent className="pl-3 pt-1">
               {item.children.map((child) => renderNavItem(child, true))}
             </CollapsibleContent>
           </Collapsible>
@@ -239,7 +232,7 @@ export function SidebarNav({ user }: SidebarProps) {
           "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
           pathname === item.href ? "bg-accent text-accent-foreground" : "transparent",
           isCollapsed && "justify-center px-0",
-          isNested && "pl-9",
+          isNested && "pl-6", // Reduced left padding for nested items
         )}
         onClick={() => isMobileMenuOpen && setIsMobileMenuOpen(false)}
       >
@@ -249,11 +242,11 @@ export function SidebarNav({ user }: SidebarProps) {
     )
   }
 
-  // Desktop sidebar
+  // Desktop sidebar - fixed position to prevent scrolling
   const DesktopSidebar = (
     <div
       className={cn(
-        "hidden md:flex flex-col h-screen border-r bg-background transition-all duration-300",
+        "hidden md:flex flex-col h-screen border-r bg-background transition-all duration-300 fixed top-0 left-0",
         isCollapsed ? "w-[80px]" : "w-[250px]",
       )}
     >
@@ -415,10 +408,12 @@ export function SidebarNav({ user }: SidebarProps) {
     </Sheet>
   )
 
+  // Add padding to the main content to account for the fixed sidebar
   return (
     <>
       {DesktopSidebar}
       {MobileSidebar}
+      <div className={cn("md:pl-[250px]", isCollapsed && "md:pl-[80px]")}></div>
     </>
   )
 }

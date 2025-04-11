@@ -20,9 +20,9 @@ import {
   Ban,
   Calendar,
   School,
-  BookOpen,
   RefreshCw,
   ExternalLink,
+  Receipt,
 } from "lucide-react"
 import { BACKEND_SERVER_URL } from "@/env"
 import { deleteStudent, updateStudentDetails, getStudentPaymentsInfo } from "@/lib/actions/student"
@@ -41,6 +41,8 @@ import { StudentIdManagement } from "./student-id-management"
 import { EditStudentDialog } from "./edit-student-dialog"
 import { NewEnrollmentDialog } from "./new-enrollment-dialog"
 import { getClassroomDetails, getAllSectionsOfClassroom } from "@/lib/actions/classroom"
+import { PaymentReceiptDialog } from "./payment-receipt-dialog"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 interface StudentDetailProps {
   student: completeStudentDetails
@@ -64,6 +66,8 @@ export function StudentDetail({ student }: StudentDetailProps) {
     Record<string, { className: string; sectionName: string }>
   >({})
   const [isLoadingEnrollmentDetails, setIsLoadingEnrollmentDetails] = useState(false)
+  const [selectedPayment, setSelectedPayment] = useState<any>(null)
+  const [receiptDialogOpen, setReceiptDialogOpen] = useState(false)
 
   const initials = studentData.name
     .split(" ")
@@ -147,14 +151,14 @@ export function StudentDetail({ student }: StudentDetailProps) {
       success: (result) => {
         if (result?.status === "SUCCESS") {
           router.push("/dashboard/students")
-          return "Student deleted successfully"
+          return result.message || "Student deleted successfully"
         } else {
           throw new Error(result?.message || "Failed to delete student")
         }
       },
       error: (error) => {
         console.error("Error deleting student:", error)
-        return "An error occurred while deleting student"
+        return error.message || "An error occurred while deleting student"
       },
       finally: () => {
         setIsDeleting(false)
@@ -170,14 +174,14 @@ export function StudentDetail({ student }: StudentDetailProps) {
       success: (result) => {
         if (result?.status === "SUCCESS" && result.data) {
           setStudentData(result.data)
-          return `Student ${studentData.isActive ? "disabled" : "enabled"} successfully`
+          return result.message || `Student ${studentData.isActive ? "disabled" : "enabled"} successfully`
         } else {
           throw new Error(result?.message || `Failed to ${studentData.isActive ? "disable" : "enable"} student`)
         }
       },
       error: (error) => {
         console.error(`Error ${studentData.isActive ? "disabling" : "enabling"} student:`, error)
-        return `An error occurred while ${studentData.isActive ? "disabling" : "enabling"} student`
+        return error.message || `An error occurred while ${studentData.isActive ? "disabling" : "enabling"} student`
       },
       finally: () => {
         setIsTogglingStatus(false)
@@ -207,12 +211,17 @@ export function StudentDetail({ student }: StudentDetailProps) {
     return "Loading..."
   }
 
+  const showPaymentReceipt = (payment: any) => {
+    setSelectedPayment(payment)
+    setReceiptDialogOpen(true)
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <Button variant="outline" onClick={() => router.back()}>
+        <Button variant="outline" onClick={() => router.push("/dashboard/students")}>
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Back
+          Back to Students
         </Button>
 
         <div className="flex flex-wrap gap-2">
@@ -396,7 +405,7 @@ export function StudentDetail({ student }: StudentDetailProps) {
                           <Badge variant={enrollment.isActive ? "default" : "outline"}>
                             {enrollment.isActive ? "Active" : "Inactive"}
                           </Badge>
-                          <Badge variant={enrollment.isComplete ? "success" : "secondary"} className="bg-orange-500">
+                          <Badge variant={enrollment.isComplete ? "default" : "secondary"} className="bg-orange-500">
                             {enrollment.isComplete ? "Completed" : "In Progress"}
                           </Badge>
                         </div>
@@ -463,35 +472,65 @@ export function StudentDetail({ student }: StudentDetailProps) {
                     <table className="w-full border-collapse">
                       <thead>
                         <tr className="border-b">
-                          <th className="py-2 px-4 text-left">Date</th>
-                          <th className="py-2 px-4 text-left">Amount</th>
-                          <th className="py-2 px-4 text-left">Original Balance</th>
-                          <th className="py-2 px-4 text-left">Remaining Balance</th>
+                          <th className="py-2 px-4 text-left border-r">Date</th>
+                          <th className="py-2 px-4 text-left border-r">Amount</th>
+                          <th className="py-2 px-4 text-left border-r">Original Balance</th>
+                          <th className="py-2 px-4 text-left border-r">Remaining Balance</th>
+                          <th className="py-2 px-4 text-left border-r">Receipt</th>
                           <th className="py-2 px-4 text-left">Enrollment</th>
                         </tr>
                       </thead>
                       <tbody>
                         {payments.map((payment, index) => (
                           <tr key={index} className="border-b">
-                            <td className="py-2 px-4">{format(new Date(payment.paidOn), "MMM d, yyyy")}</td>
-                            <td className="py-2 px-4">₹{payment.paidAmount.toLocaleString()}</td>
-                            <td className="py-2 px-4">₹{payment.originalBalance.toLocaleString()}</td>
-                            <td className="py-2 px-4">₹{payment.remainingBalance.toLocaleString()}</td>
+                            <td className="py-2 px-4 border-r">{format(new Date(payment.paidOn), "MMM d, yyyy")}</td>
+                            <td className="py-2 px-4 border-r">₹{payment.paidAmount.toLocaleString()}</td>
+                            <td className="py-2 px-4 border-r">₹{payment.originalBalance.toLocaleString()}</td>
+                            <td className="py-2 px-4 border-r">₹{payment.remainingBalance.toLocaleString()}</td>
+                            <td className="py-2 px-4 border-r">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => showPaymentReceipt(payment)}
+                                      className="flex items-center gap-1"
+                                    >
+                                      <Receipt className="h-4 w-4" />
+                                      View
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>View payment receipt</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </td>
                             <td className="py-2 px-4">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  // Open in new tab
-                                  window.open(
-                                    `/dashboard/student/${studentData.id}/enrollment/${payment.enrollmentId}`,
-                                    "_blank",
-                                  )
-                                }}
-                              >
-                                <BookOpen className="mr-2 h-4 w-4" />
-                                View
-                              </Button>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        // Open in new tab
+                                        window.open(
+                                          `/dashboard/student/${studentData.id}/enrollment/${payment.enrollmentId}`,
+                                          "_blank",
+                                        )
+                                      }}
+                                    >
+                                      <ExternalLink className="mr-2 h-4 w-4" />
+                                      View
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>View enrollment details</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
                             </td>
                           </tr>
                         ))}
@@ -548,6 +587,15 @@ export function StudentDetail({ student }: StudentDetailProps) {
         open={newEnrollmentDialogOpen}
         onOpenChange={setNewEnrollmentDialogOpen}
         onSuccess={handleEnrollmentCreated}
+      />
+
+      <PaymentReceiptDialog
+        open={receiptDialogOpen}
+        onOpenChange={setReceiptDialogOpen}
+        payment={selectedPayment}
+        studentName={studentData.name}
+        className={selectedPayment && enrollmentDetails[selectedPayment.enrollmentId]?.className}
+        sectionName={selectedPayment && enrollmentDetails[selectedPayment.enrollmentId]?.sectionName}
       />
     </div>
   )

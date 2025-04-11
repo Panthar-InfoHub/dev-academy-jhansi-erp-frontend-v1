@@ -1,13 +1,15 @@
 "use client"
 
 import { useState } from "react"
-import type { completeStudentDetails, identityEntry } from "@/types/student"
+import type { completeStudentDetails } from "@/types/student"
+
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Plus, Trash2, Save } from "lucide-react"
 import { updateStudentDetails } from "@/lib/actions/student"
 import { toast } from "sonner"
+import { identityEntry } from "@/types/employee";
 
 interface StudentIdManagementProps {
   student: completeStudentDetails

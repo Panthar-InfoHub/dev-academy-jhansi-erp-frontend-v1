@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { format } from "date-fns"
 import { toast } from "sonner"
-import { Copy, Ban, CheckCircle, UserX, UserCheck, DollarSign, Trash2, Pencil } from "lucide-react"
+import { Copy, Ban, CheckCircle, UserX, UserCheck, DollarSign, Trash2, Pencil, ArrowLeft } from "lucide-react"
 import { BACKEND_SERVER_URL } from "@/env"
 import { updateEmployee, deleteEmployee } from "@/lib/actions/employee"
 import { useRouter } from "next/navigation"
@@ -362,7 +362,8 @@ export function EmployeeDetail({ employee }: EmployeeDetailProps) {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <Button variant="outline" onClick={() => router.back()}>
+        <Button variant="outline" onClick={() => router.push("/dashboard/employees")}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Employees
         </Button>
 
