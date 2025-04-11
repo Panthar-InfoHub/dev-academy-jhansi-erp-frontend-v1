@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import type { completeEmployeeAttributes } from "@/types/employee"
+import type { completeEmployeeAttributes } from "@/types/employee.d"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PersonalDetails } from "@/components/profile/personal-details"
 import { ProfileAttendance } from "@/components/profile/profile-attendance"
@@ -15,16 +15,16 @@ export function ProfileTabs({ employee }: ProfileTabsProps) {
 
   return (
     <Tabs defaultValue="details" value={activeTab} onValueChange={setActiveTab} className="w-full">
-      <TabsList className="grid w-full grid-cols-2 mb-8">
+      <TabsList className="grid w-full grid-cols-2 mb-6">
         <TabsTrigger value="details">Personal Details</TabsTrigger>
         <TabsTrigger value="attendance">Attendance</TabsTrigger>
       </TabsList>
 
-      <TabsContent value="details" className="mt-0">
+      <TabsContent value="details" className="mt-0 space-y-4">
         <PersonalDetails employee={employee} />
       </TabsContent>
 
-      <TabsContent value="attendance" className="mt-0">
+      <TabsContent value="attendance" className="mt-0 space-y-4">
         <ProfileAttendance employeeId={employee.id} />
       </TabsContent>
     </Tabs>

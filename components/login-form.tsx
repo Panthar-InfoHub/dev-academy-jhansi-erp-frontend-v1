@@ -23,9 +23,29 @@ export function LoginForm({ className, ...props }: { className?: string }) {
         password: formData.get("password"),
       }
 
+      // Log the form values for debugging (remove in production)
+      console.log("Form values:", { username: formValues.username, password: "***" })
+
       await signInSchema.parseAsync(formValues)
+
+      // Make sure the form data is valid before submitting
+      if (!formValues.username || !formValues.password) {
+        toast.error("Please enter both email and password")
+        return { ...prevState, error: "Validation Failed", status: "Error" }
+      }
+
       await adminSignIn(formData)
+
+      // If we get here without a redirect, it means the login failed
+      toast.error("Invalid email or password")
+      return {
+        ...prevState,
+        error: "Authentication failed",
+        status: "Error",
+      }
     } catch (error) {
+      console.error("Login error:", error)
+
       if (error instanceof z.ZodError) {
         const fieldErrors = error.flatten().fieldErrors
         setErrors(fieldErrors)

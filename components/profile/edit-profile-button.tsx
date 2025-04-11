@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState } from "react"
-import type { completeEmployeeAttributes } from "@/types/employee"
+import type { completeEmployeeAttributes } from "@/types/employee.d"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,

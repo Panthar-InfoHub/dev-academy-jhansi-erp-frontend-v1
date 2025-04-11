@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { getDailyAttendance } from "@/lib/actions/employee"
 import { generateDailyAttendanceEntries } from "@/lib/actions/admin"
-import type { AttendanceDetailEntry } from "@/types/employee"
+import type { AttendanceDetailEntry } from "@/types/employee.d"
 import { toast } from "sonner"
 import { format } from "date-fns"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -26,7 +26,15 @@ export function AttendanceReport() {
       const result = await getDailyAttendance(selectedDate)
 
       if (result?.status === "SUCCESS" && result.data) {
-        setAttendanceData(result.data.attendanceData || [])
+        // Check if the data is in the expected format
+        if (result.data.attendanceData) {
+          setAttendanceData(result.data.attendanceData || [])
+        } else if (result.data.attendance) {
+          setAttendanceData(result.data.attendance || [])
+        } else {
+          console.error("Unexpected data format:", result.data)
+          setAttendanceData([])
+        }
         toast.success("Attendance data loaded successfully")
       } else {
         toast.error(result?.message || "Failed to fetch attendance data")
@@ -139,8 +147,12 @@ export function AttendanceReport() {
                   attendanceData.map((attendance) => (
                     <TableRow key={attendance.attendanceId}>
                       <TableCell>{attendance.employeeId}</TableCell>
-                      <TableCell>{attendance.employee.name}</TableCell>
-                      <TableCell>{format(new Date(attendance.date), "PPP")}</TableCell>
+                      <TableCell>{attendance.employee?.name || "Unknown"}</TableCell>
+                      <TableCell>
+                        {typeof attendance.date === "string"
+                          ? format(new Date(attendance.date), "PPP")
+                          : format(attendance.date, "PPP")}
+                      </TableCell>
                       <TableCell>
                         <Badge variant={attendance.isPresent ? "default" : "destructive"}>
                           {attendance.isPresent ? "Yes" : "No"}

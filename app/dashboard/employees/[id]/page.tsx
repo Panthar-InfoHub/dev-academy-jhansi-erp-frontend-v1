@@ -1,22 +1,22 @@
 import { auth, type customUser } from "@/auth"
 import { fetchEmployeeDetails } from "@/lib/actions/employee"
-import { notFound } from "next/navigation"
-import { ProfileHeader } from "@/components/profile/profile-header"
-import { ProfileTabs } from "@/components/profile/profile-tabs"
+import { notFound, redirect } from "next/navigation"
+import { EmployeeDetail } from "@/components/employees/employee-detail"
 import { unstable_noStore as noStore } from "next/cache"
 
-export default async function ProfilePage() {
+export default async function EmployeeDetailPage({ params }: { params: { id: string } }) {
   // Disable caching to ensure we always get fresh data
   noStore()
 
   const session = await auth()
   const user = session?.user as customUser
 
-  if (!user || !user.id) {
-    notFound()
+  if (!user || !user.isAdmin) {
+    redirect("/dashboard")
   }
 
-  const employeeData = await fetchEmployeeDetails(user.id)
+  const employeeId = params.id
+  const employeeData = await fetchEmployeeDetails(employeeId)
 
   if (!employeeData) {
     notFound()
@@ -24,8 +24,7 @@ export default async function ProfilePage() {
 
   return (
     <div className="w-full max-w-5xl mx-auto">
-      <ProfileHeader employee={employeeData} />
-      <ProfileTabs employee={employeeData} />
+      <EmployeeDetail employee={employeeData} />
     </div>
   )
 }

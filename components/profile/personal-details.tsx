@@ -1,4 +1,4 @@
-import type { completeEmployeeAttributes } from "@/types/employee"
+import type { completeEmployeeAttributes } from "@/types/employee.d"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { format } from "date-fns"
@@ -10,7 +10,7 @@ interface PersonalDetailsProps {
 
 export function PersonalDetails({ employee }: PersonalDetailsProps) {
   return (
-    <div className="grid gap-6 md:grid-cols-2">
+    <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2">
       <Card>
         <CardHeader>
           <CardTitle>Personal Information</CardTitle>

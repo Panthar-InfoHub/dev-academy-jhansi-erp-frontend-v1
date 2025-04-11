@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { getEmployeeAttendance } from "@/lib/actions/employee"
 import { toast } from "sonner"
 import { format, subMonths, startOfDay, endOfDay } from "date-fns"
-import type { AttendanceDetailEntry } from "@/types/employee"
+import type { AttendanceDetailEntry } from "@/types/employee.d"
 import { Badge } from "@/components/ui/badge"
 import { Loader2, RefreshCw } from "lucide-react"
 
@@ -27,8 +27,15 @@ export function ProfileAttendance({ employeeId }: ProfileAttendanceProps) {
       const result = await getEmployeeAttendance(employeeId, startOfDay(startDate), endOfDay(endDate))
 
       if (result?.status === "SUCCESS" && result.data) {
-        setAttendanceData(result.data.attendanceData || [])
-        toast.success("Attendance data loaded successfully")
+        // Check if the data is in the expected format
+        if (result.data.attendance) {
+          setAttendanceData(result.data.attendance || [])
+          toast.success("Attendance data loaded successfully")
+        } else {
+          console.error("Unexpected data format:", result.data)
+          toast.error("Unexpected data format received")
+          setAttendanceData([])
+        }
       } else {
         toast.error(result?.message || "Failed to fetch attendance data")
         setAttendanceData([])
@@ -49,7 +56,10 @@ export function ProfileAttendance({ employeeId }: ProfileAttendanceProps) {
   // Function to determine day color based on attendance
   const getDayClassNames = (date: Date) => {
     const dateStr = format(date, "yyyy-MM-dd")
-    const attendance = attendanceData.find((a) => a.date.split("T")[0] === dateStr)
+    const attendance = attendanceData.find((a) => {
+      const attendanceDate = typeof a.date === "string" ? a.date.split("T")[0] : format(new Date(a.date), "yyyy-MM-dd")
+      return attendanceDate === dateStr
+    })
 
     if (!attendance) return undefined
 
@@ -89,21 +99,35 @@ export function ProfileAttendance({ employeeId }: ProfileAttendanceProps) {
                 modifiers={{
                   booked: (date) => {
                     const dateStr = format(date, "yyyy-MM-dd")
-                    return attendanceData.some((a) => a.date.split("T")[0] === dateStr && a.isPresent)
+                    return attendanceData.some((a) => {
+                      const attendanceDate =
+                        typeof a.date === "string" ? a.date.split("T")[0] : format(new Date(a.date), "yyyy-MM-dd")
+                      return attendanceDate === dateStr && a.isPresent
+                    })
                   },
                   holiday: (date) => {
                     const dateStr = format(date, "yyyy-MM-dd")
-                    return attendanceData.some((a) => a.date.split("T")[0] === dateStr && a.isHoliday)
+                    return attendanceData.some((a) => {
+                      const attendanceDate =
+                        typeof a.date === "string" ? a.date.split("T")[0] : format(new Date(a.date), "yyyy-MM-dd")
+                      return attendanceDate === dateStr && a.isHoliday
+                    })
                   },
                   leave: (date) => {
                     const dateStr = format(date, "yyyy-MM-dd")
-                    return attendanceData.some((a) => a.date.split("T")[0] === dateStr && a.isLeave)
+                    return attendanceData.some((a) => {
+                      const attendanceDate =
+                        typeof a.date === "string" ? a.date.split("T")[0] : format(new Date(a.date), "yyyy-MM-dd")
+                      return attendanceDate === dateStr && a.isLeave
+                    })
                   },
                   absent: (date) => {
                     const dateStr = format(date, "yyyy-MM-dd")
-                    return attendanceData.some(
-                      (a) => a.date.split("T")[0] === dateStr && !a.isPresent && !a.isHoliday && !a.isLeave,
-                    )
+                    return attendanceData.some((a) => {
+                      const attendanceDate =
+                        typeof a.date === "string" ? a.date.split("T")[0] : format(new Date(a.date), "yyyy-MM-dd")
+                      return attendanceDate === dateStr && !a.isPresent && !a.isHoliday && !a.isLeave
+                    })
                   },
                 }}
                 modifiersClassNames={{
@@ -174,7 +198,11 @@ export function ProfileAttendance({ employeeId }: ProfileAttendanceProps) {
                 <tbody>
                   {attendanceData.map((attendance) => (
                     <tr key={attendance.attendanceId} className="border-b">
-                      <td className="py-2 px-4">{format(new Date(attendance.date), "PPP")}</td>
+                      <td className="py-2 px-4">
+                        {typeof attendance.date === "string"
+                          ? format(new Date(attendance.date), "PPP")
+                          : format(attendance.date, "PPP")}
+                      </td>
                       <td className="py-2 px-4">
                         {attendance.isHoliday ? (
                           <Badge variant="secondary">Holiday</Badge>

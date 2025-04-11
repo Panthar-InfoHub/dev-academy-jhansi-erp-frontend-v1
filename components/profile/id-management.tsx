@@ -1,11 +1,11 @@
 "use client"
 
-import { useState } from "react"
-import type { completeEmployeeAttributes, identityEntry } from "@/types/employee"
+import { useState, useEffect } from "react"
+import type { completeEmployeeAttributes, identityEntry } from "@/types/employee.d"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Plus, Trash2 } from "lucide-react"
+import { Plus, Trash2, Save } from "lucide-react"
 import { updateEmployee } from "@/lib/actions/employee"
 import { toast } from "sonner"
 
@@ -18,6 +18,12 @@ export function IdManagement({ employee }: IdManagementProps) {
   const [newIdName, setNewIdName] = useState("")
   const [newIdValue, setNewIdValue] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [hasChanges, setHasChanges] = useState(false)
+
+  // Update local state when employee props change (e.g., after refresh)
+  useEffect(() => {
+    setIds(employee.ids || [])
+  }, [employee.ids])
 
   const handleAddId = () => {
     if (!newIdName || !newIdValue) {
@@ -33,24 +39,34 @@ export function IdManagement({ employee }: IdManagementProps) {
     setIds([...ids, newId])
     setNewIdName("")
     setNewIdValue("")
+    setHasChanges(true)
   }
 
   const handleRemoveId = (index: number) => {
     const newIds = [...ids]
     newIds.splice(index, 1)
     setIds(newIds)
+    setHasChanges(true)
   }
 
   const handleSaveIds = async () => {
     setIsSubmitting(true)
     try {
-      const result = await updateEmployee({
+      // Create a copy of the form values to avoid modifying the original data
+      const formData = {
         id: employee.id,
-        ids,
-      })
+        ids: ids,
+      }
+
+      console.log("Saving IDs:", formData)
+
+      const result = await updateEmployee(formData)
 
       if (result.status === "SUCCESS") {
         toast.success("Identification documents updated successfully")
+        setHasChanges(false)
+        // Force refresh to show updated data
+        window.location.reload()
       } else {
         toast.error(result.message || "Failed to update identification documents")
       }
@@ -68,9 +84,9 @@ export function IdManagement({ employee }: IdManagementProps) {
         <div className="space-y-2">
           {ids.map((id, index) => (
             <div key={index} className="flex items-center justify-between">
-              <div>
-                <span className="font-medium">{id.idDocName}: </span>
-                <span>{id.idDocValue}</span>
+              <div className="flex flex-col space-y-1">
+                <span className="font-medium">{id.idDocName}</span>
+                <span className="text-muted-foreground">{id.idDocValue}</span>
               </div>
               <Button
                 variant="ghost"
@@ -87,9 +103,9 @@ export function IdManagement({ employee }: IdManagementProps) {
         <p className="text-muted-foreground">No identification documents provided</p>
       )}
 
-      <div className="space-y-2 pt-2">
-        <div className="grid grid-cols-2 gap-2">
-          <div>
+      <div className="space-y-4 pt-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
             <Label htmlFor="idName">ID Type</Label>
             <Input
               id="idName"
@@ -98,7 +114,7 @@ export function IdManagement({ employee }: IdManagementProps) {
               placeholder="Aadhar, PAN, etc."
             />
           </div>
-          <div>
+          <div className="space-y-2">
             <Label htmlFor="idValue">ID Value</Label>
             <Input
               id="idValue"
@@ -112,8 +128,9 @@ export function IdManagement({ employee }: IdManagementProps) {
           <Button type="button" size="sm" onClick={handleAddId} className="mt-2">
             <Plus className="mr-2 h-4 w-4" /> Add ID
           </Button>
-          {ids.length > 0 && (
+          {hasChanges && (
             <Button type="button" size="sm" onClick={handleSaveIds} disabled={isSubmitting} className="mt-2">
+              <Save className="mr-2 h-4 w-4" />
               {isSubmitting ? "Saving..." : "Save Changes"}
             </Button>
           )}

@@ -3,7 +3,7 @@ import axios, { AxiosError } from "axios";
 import { BACKEND_SERVER_URL } from "@/env";
 import { parseServerResponse, serverResponseParserArguments } from "@/lib/utils";
 import { revalidatePath } from "next/cache";
-import { EmployeeAttributes, completeEmployeeAttributes, DailyAttendanceResponse } from "@/types/employee";
+import { completeEmployeeAttributes, DailyAttendanceResponse, EmployeeAttributes } from "@/types/employee";
 
 //Completed
 export const addNewEmployee = async (formValues: EmployeeAttributes) => {

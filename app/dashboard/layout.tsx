@@ -2,7 +2,6 @@ import type React from "react"
 import { auth, type customUser } from "@/auth"
 import { redirect } from "next/navigation"
 import { SidebarNav } from "@/components/sidebar"
-import { SCHOOL_NAME } from "@/env"
 import { Toaster } from "sonner"
 
 export default async function DashboardLayout({
@@ -18,19 +17,19 @@ export default async function DashboardLayout({
 
   const user = session.user as customUser
 
+  // If user is not an admin, redirect them to their profile page
+  if (!user.isAdmin && !user.isTeacher && !user.id) {
+    redirect("/")
+  } else if (!user.isAdmin && user.id) {
+    // Teachers and other employees should only see their profile
+    redirect(`/dashboard/profile`)
+  }
+
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex min-h-screen">
       <SidebarNav user={user} />
-      <div className="flex-1 flex flex-col overflow-auto">
-        <header className="border-b bg-background p-4 sticky top-0 z-10">
-          <div className="flex items-center justify-between">
-            <h1 className="text-lg font-semibold">{SCHOOL_NAME} ERP</h1>
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-muted-foreground">Welcome, {user.name}</span>
-            </div>
-          </div>
-        </header>
-        <main className="flex-1 p-6 overflow-auto">{children}</main>
+      <div className="flex-1 flex flex-col min-w-0">
+        <main className="flex-1 p-6 pt-10 overflow-auto">{children}</main>
         <Toaster position="top-right" richColors />
       </div>
     </div>
