@@ -5,9 +5,9 @@ import { EmployeeDetail } from "@/components/employees/employee-detail"
 import { unstable_noStore as noStore } from "next/cache"
 
 interface EmployeeDetailPageProps {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 export default async function EmployeeDetailPage({ params }: EmployeeDetailPageProps) {
@@ -15,7 +15,7 @@ export default async function EmployeeDetailPage({ params }: EmployeeDetailPageP
   noStore()
 
   // Ensure params.id exists before proceeding
-  if (!params?.id) {
+  if (!(await params)?.id) {
     notFound()
   }
 
@@ -26,7 +26,7 @@ export default async function EmployeeDetailPage({ params }: EmployeeDetailPageP
     redirect("/dashboard")
   }
 
-  const employeeId = params.id
+  const employeeId = (await params).id
   const employeeData = await fetchEmployeeDetails(employeeId)
 
   if (!employeeData) {

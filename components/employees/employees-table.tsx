@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import { searchEmployees, deleteEmployee, updateEmployee, addNewEmployee } from "@/lib/actions/employee"
-import type { completeEmployeeAttributes, identityEntry } from "@/types/employee.d"
+import type { completeEmployeeAttributes, EmployeeAttributes, identityEntry } from "@/types/employee.d"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -203,16 +203,6 @@ export function EmployeesTable({ initialEmployees, initialTotalCount }: Employee
   const handleEnableEmployee = async () => {
     if (!employeeToEnable) return
 
-    // Find the employee to enable
-    const employeeToEnableData = employees.find((emp) => emp.id === employeeToEnable)
-
-    // Check if employee is fired
-    if (employeeToEnableData?.isFired) {
-      toast.error("Cannot enable a fired employee. Please reinstate the employee first.")
-      setEmployeeToEnable(null)
-      return
-    }
-
     setIsActionLoading(true)
 
     toast.promise(
@@ -284,7 +274,7 @@ export function EmployeesTable({ initialEmployees, initialTotalCount }: Employee
       updateEmployee({
         id: employeeToUnfire,
         isFired: false,
-        isActive: true, // Also enable the account when unfiring
+        // Don't automatically enable the account when reinstating
       }),
       {
         loading: "Processing...",
@@ -403,7 +393,7 @@ export function EmployeesTable({ initialEmployees, initialTotalCount }: Employee
 
     try {
       // Convert salary to number
-      const employeeData = {
+      const employeeData: EmployeeAttributes = {
         ...newEmployee,
         salary: Number.parseFloat(newEmployee.salary),
       }
@@ -914,13 +904,11 @@ export function EmployeesTable({ initialEmployees, initialTotalCount }: Employee
                                 setEmployeeToEnable(employee.id)
                               }}
                               className="text-green-600"
-                              disabled={isCurrentUser(employee.id) || employee.isFired} // Disable for current user or fired employees
-                              title={employee.isFired ? "Cannot enable a fired employee. Please reinstate first." : ""}
+                              disabled={isCurrentUser(employee.id)} // Disable for current user
                             >
                               <CheckCircle className="mr-2 h-4 w-4" />
                               Enable
                               {isCurrentUser(employee.id) && " (Self)"}
-                              {employee.isFired && " (Fired)"}
                             </DropdownMenuItem>
                           )}
 
@@ -1123,7 +1111,7 @@ export function EmployeesTable({ initialEmployees, initialTotalCount }: Employee
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure you want to reinstate this employee?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will remove the fired status from the employee and enable their account.
+              This will remove the fired status from the employee. You will need to enable their account separately.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

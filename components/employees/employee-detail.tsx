@@ -11,14 +11,13 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { format } from "date-fns"
 import { toast } from "sonner"
-import { Copy, Ban, CheckCircle, UserX, UserCheck, DollarSign } from "lucide-react"
+import { Copy, Ban, CheckCircle, UserX, UserCheck, DollarSign, Trash2, Pencil } from "lucide-react"
 import { BACKEND_SERVER_URL } from "@/env"
-import { updateEmployee } from "@/lib/actions/employee"
+import { updateEmployee, deleteEmployee } from "@/lib/actions/employee"
 import { useRouter } from "next/navigation"
 import { IdManagement } from "@/components/profile/id-management"
 import { UploadProfileImage } from "@/components/profile/upload-profile-image"
 import { ProfileAttendance } from "@/components/profile/profile-attendance"
-import { EditProfileButton } from "@/components/profile/edit-profile-button"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,7 +41,11 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { updateSalarySchema } from "@/lib/validation"
+import { updateSalarySchema, updatePersonalInfoSchema, updateWorkInfoSchema } from "@/lib/validation"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
+import { CalendarIcon } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 interface EmployeeDetailProps {
   employee: completeEmployeeAttributes
@@ -58,6 +61,30 @@ export function EmployeeDetail({ employee }: EmployeeDetailProps) {
   const [salaryDialogOpen, setSalaryDialogOpen] = useState(false)
   const [newSalary, setNewSalary] = useState(employee.salary.toString())
   const [salaryError, setSalaryError] = useState("")
+  const [personalInfoDialogOpen, setPersonalInfoDialogOpen] = useState(false)
+  const [workInfoDialogOpen, setWorkInfoDialogOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  // Personal info form state
+  const [personalInfo, setPersonalInfo] = useState({
+    name: employee.name,
+    address: employee.address || "",
+    phone: employee.phone || "",
+    fatherName: employee.fatherName || "",
+    fatherPhone: employee.fatherPhone || "",
+    motherName: employee.motherName || "",
+    motherPhone: employee.motherPhone || "",
+    dateOfBirth: new Date(employee.dateOfBirth),
+  })
+
+  // Work info form state
+  const [workInfo, setWorkInfo] = useState({
+    email: employee.email,
+    workRole: employee.workRole,
+  })
+
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
 
   const initials = employee.name
     .split(" ")
@@ -79,12 +106,6 @@ export function EmployeeDetail({ employee }: EmployeeDetailProps) {
   const handleStatusChange = async (status: { isActive?: boolean; isFired?: boolean }) => {
     if (isCurrentUser) {
       toast.error("You cannot modify your own account status")
-      return
-    }
-
-    // If trying to enable a fired employee, show error
-    if (status.isActive === true && employee.isFired && !status.isFired) {
-      toast.error("Cannot enable a fired employee. Please reinstate the employee first.")
       return
     }
 
@@ -167,12 +188,212 @@ export function EmployeeDetail({ employee }: EmployeeDetailProps) {
     }
   }
 
+  const handlePersonalInfoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setPersonalInfo((prev) => ({
+      ...prev,
+      [name]: value,
+    }))
+
+    // Clear error for this field
+    if (formErrors[name]) {
+      setFormErrors((prev) => {
+        const newErrors = { ...prev }
+        delete newErrors[name]
+        return newErrors
+      })
+    }
+  }
+
+  const handleWorkInfoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setWorkInfo((prev) => ({
+      ...prev,
+      [name]: value,
+    }))
+
+    // Clear error for this field
+    if (formErrors[name]) {
+      setFormErrors((prev) => {
+        const newErrors = { ...prev }
+        delete newErrors[name]
+        return newErrors
+      })
+    }
+  }
+
+  const handlePersonalInfoSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSubmitting(true)
+
+    try {
+      // Validate the form data
+      const validationResult = updatePersonalInfoSchema.safeParse({
+        ...personalInfo,
+      })
+
+      if (!validationResult.success) {
+        const errors: Record<string, string> = {}
+        validationResult.error.errors.forEach((err) => {
+          const path = err.path[0] as string
+          errors[path] = err.message
+        })
+
+        setFormErrors(errors)
+        setIsSubmitting(false)
+        return
+      }
+
+      toast.promise(
+        updateEmployee({
+          id: employee.id,
+          ...personalInfo,
+        }),
+        {
+          loading: "Updating personal information...",
+          success: (result) => {
+            if (result.status === "SUCCESS") {
+              setPersonalInfoDialogOpen(false)
+              router.refresh()
+              return "Personal information updated successfully"
+            } else {
+              throw new Error(result.message || "Failed to update personal information")
+            }
+          },
+          error: (error) => {
+            console.error("Error updating personal information:", error)
+            return "An error occurred while updating personal information"
+          },
+          finally: () => {
+            setIsSubmitting(false)
+          },
+        },
+      )
+    } catch (error) {
+      console.error("Error updating personal information:", error)
+      toast.error("An error occurred while updating personal information")
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleWorkInfoSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSubmitting(true)
+
+    try {
+      // Validate the form data
+      const validationResult = updateWorkInfoSchema.safeParse({
+        ...workInfo,
+      })
+
+      if (!validationResult.success) {
+        const errors: Record<string, string> = {}
+        validationResult.error.errors.forEach((err) => {
+          const path = err.path[0] as string
+          errors[path] = err.message
+        })
+
+        setFormErrors(errors)
+        setIsSubmitting(false)
+        return
+      }
+
+      toast.promise(
+        updateEmployee({
+          id: employee.id,
+          ...workInfo,
+        }),
+        {
+          loading: "Updating work information...",
+          success: (result) => {
+            if (result.status === "SUCCESS") {
+              setWorkInfoDialogOpen(false)
+              router.refresh()
+              return "Work information updated successfully"
+            } else {
+              throw new Error(result.message || "Failed to update work information")
+            }
+          },
+          error: (error) => {
+            console.error("Error updating work information:", error)
+            return "An error occurred while updating work information"
+          },
+          finally: () => {
+            setIsSubmitting(false)
+          },
+        },
+      )
+    } catch (error) {
+      console.error("Error updating work information:", error)
+      toast.error("An error occurred while updating work information")
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleDeleteEmployee = async () => {
+    if (isCurrentUser) {
+      toast.error("You cannot delete your own account")
+      return
+    }
+
+    setIsDeleting(true)
+
+    toast.promise(deleteEmployee(employee.id), {
+      loading: "Deleting employee...",
+      success: (result) => {
+        if (result?.status === "SUCCESS") {
+          router.push("/dashboard/employees")
+          return "Employee deleted successfully"
+        } else {
+          throw new Error(result?.message || "Failed to delete employee")
+        }
+      },
+      error: (error) => {
+        console.error("Error deleting employee:", error)
+        return "An error occurred while deleting employee"
+      },
+      finally: () => {
+        setIsDeleting(false)
+        setDeleteDialogOpen(false)
+      },
+    })
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <Button variant="outline" onClick={() => router.back()}>
           Back to Employees
         </Button>
+
+        {/* Delete Employee Button */}
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogTrigger asChild>
+            <Button variant="destructive" disabled={isCurrentUser}>
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete Employee
+              {isCurrentUser && " (Self)"}
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you sure you want to delete this employee?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the employee and all associated data.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteEmployee}
+                disabled={isDeleting}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                {isDeleting ? "Deleting..." : "Delete"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
       <div className="flex flex-col md:flex-row gap-6 items-start">
@@ -209,7 +430,239 @@ export function EmployeeDetail({ employee }: EmployeeDetailProps) {
             </div>
 
             <div className="flex flex-wrap gap-2 mt-4 md:mt-0">
-              <EditProfileButton employee={employee} />
+              {/* Personal Info Dialog */}
+              <Dialog open={personalInfoDialogOpen} onOpenChange={setPersonalInfoDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline">
+                    <Pencil className="mr-2 h-4 w-4" />
+                    Edit Personal Info
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[525px]">
+                  <DialogHeader>
+                    <DialogTitle>Edit Personal Information</DialogTitle>
+                    <DialogDescription>Update personal details for {employee.name}.</DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handlePersonalInfoSubmit}>
+                    <div className="grid gap-4 py-4">
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="name" className="text-right">
+                          Name
+                        </Label>
+                        <Input
+                          id="name"
+                          name="name"
+                          value={personalInfo.name}
+                          onChange={handlePersonalInfoChange}
+                          className="col-span-3"
+                          required
+                        />
+                        {formErrors.name && (
+                          <p className="text-sm text-red-500 col-start-2 col-span-3">{formErrors.name}</p>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="dateOfBirth" className="text-right">
+                          Date of Birth
+                        </Label>
+                        <div className="col-span-3">
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                className={cn(
+                                  "w-full justify-start text-left font-normal",
+                                  !personalInfo.dateOfBirth && "text-muted-foreground",
+                                )}
+                              >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {personalInfo.dateOfBirth ? (
+                                  format(personalInfo.dateOfBirth, "PPP")
+                                ) : (
+                                  <span>Pick a date</span>
+                                )}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0">
+                              <Calendar
+                                mode="single"
+                                selected={personalInfo.dateOfBirth}
+                                onSelect={(date) => date && setPersonalInfo((prev) => ({ ...prev, dateOfBirth: date }))}
+                                initialFocus
+                                disabled={(date) => date > new Date()}
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                        {formErrors.dateOfBirth && (
+                          <p className="text-sm text-red-500 col-start-2 col-span-3">{formErrors.dateOfBirth}</p>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="phone" className="text-right">
+                          Phone
+                        </Label>
+                        <Input
+                          id="phone"
+                          name="phone"
+                          value={personalInfo.phone}
+                          onChange={handlePersonalInfoChange}
+                          className="col-span-3"
+                        />
+                        {formErrors.phone && (
+                          <p className="text-sm text-red-500 col-start-2 col-span-3">{formErrors.phone}</p>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="address" className="text-right">
+                          Address
+                        </Label>
+                        <Input
+                          id="address"
+                          name="address"
+                          value={personalInfo.address}
+                          onChange={handlePersonalInfoChange}
+                          className="col-span-3"
+                        />
+                        {formErrors.address && (
+                          <p className="text-sm text-red-500 col-start-2 col-span-3">{formErrors.address}</p>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="fatherName" className="text-right">
+                          Father's Name
+                        </Label>
+                        <Input
+                          id="fatherName"
+                          name="fatherName"
+                          value={personalInfo.fatherName}
+                          onChange={handlePersonalInfoChange}
+                          className="col-span-3"
+                        />
+                        {formErrors.fatherName && (
+                          <p className="text-sm text-red-500 col-start-2 col-span-3">{formErrors.fatherName}</p>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="fatherPhone" className="text-right">
+                          Father's Phone
+                        </Label>
+                        <Input
+                          id="fatherPhone"
+                          name="fatherPhone"
+                          value={personalInfo.fatherPhone}
+                          onChange={handlePersonalInfoChange}
+                          className="col-span-3"
+                        />
+                        {formErrors.fatherPhone && (
+                          <p className="text-sm text-red-500 col-start-2 col-span-3">{formErrors.fatherPhone}</p>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="motherName" className="text-right">
+                          Mother's Name
+                        </Label>
+                        <Input
+                          id="motherName"
+                          name="motherName"
+                          value={personalInfo.motherName}
+                          onChange={handlePersonalInfoChange}
+                          className="col-span-3"
+                        />
+                        {formErrors.motherName && (
+                          <p className="text-sm text-red-500 col-start-2 col-span-3">{formErrors.motherName}</p>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="motherPhone" className="text-right">
+                          Mother's Phone
+                        </Label>
+                        <Input
+                          id="motherPhone"
+                          name="motherPhone"
+                          value={personalInfo.motherPhone}
+                          onChange={handlePersonalInfoChange}
+                          className="col-span-3"
+                        />
+                        {formErrors.motherPhone && (
+                          <p className="text-sm text-red-500 col-start-2 col-span-3">{formErrors.motherPhone}</p>
+                        )}
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button type="submit" disabled={isSubmitting}>
+                        {isSubmitting ? "Saving..." : "Save changes"}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+
+              {/* Work Info Dialog */}
+              <Dialog open={workInfoDialogOpen} onOpenChange={setWorkInfoDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline">
+                    <Pencil className="mr-2 h-4 w-4" />
+                    Edit Work Info
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[525px]">
+                  <DialogHeader>
+                    <DialogTitle>Edit Work Information</DialogTitle>
+                    <DialogDescription>Update work details for {employee.name}.</DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handleWorkInfoSubmit}>
+                    <div className="grid gap-4 py-4">
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="email" className="text-right">
+                          Email
+                        </Label>
+                        <Input
+                          id="email"
+                          name="email"
+                          type="email"
+                          value={workInfo.email}
+                          onChange={handleWorkInfoChange}
+                          className="col-span-3"
+                          required
+                        />
+                        {formErrors.email && (
+                          <p className="text-sm text-red-500 col-start-2 col-span-3">{formErrors.email}</p>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="workRole" className="text-right">
+                          Work Role
+                        </Label>
+                        <Input
+                          id="workRole"
+                          name="workRole"
+                          value={workInfo.workRole}
+                          onChange={handleWorkInfoChange}
+                          className="col-span-3"
+                          required
+                        />
+                        {formErrors.workRole && (
+                          <p className="text-sm text-red-500 col-start-2 col-span-3">{formErrors.workRole}</p>
+                        )}
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button type="submit" disabled={isSubmitting}>
+                        {isSubmitting ? "Saving..." : "Save changes"}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
 
               {/* Salary Update Dialog */}
               <Dialog open={salaryDialogOpen} onOpenChange={setSalaryDialogOpen}>
@@ -284,15 +737,10 @@ export function EmployeeDetail({ employee }: EmployeeDetailProps) {
               ) : (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button
-                      variant="outline"
-                      disabled={isSubmitting || isCurrentUser || employee.isFired}
-                      title={employee.isFired ? "Cannot enable a fired employee. Please reinstate first." : ""}
-                    >
+                    <Button variant="outline" disabled={isSubmitting || isCurrentUser}>
                       <CheckCircle className="mr-2 h-4 w-4" />
                       Enable
                       {isCurrentUser && " (Self)"}
-                      {employee.isFired && " (Fired)"}
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
@@ -328,13 +776,14 @@ export function EmployeeDetail({ employee }: EmployeeDetailProps) {
                     <AlertDialogHeader>
                       <AlertDialogTitle>Are you sure you want to reinstate this employee?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        This will remove the fired status from the employee and enable their account.
+                        This will remove the fired status from the employee. You will need to enable their account
+                        separately.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
                       <AlertDialogAction
-                        onClick={() => handleStatusChange({ isFired: false, isActive: true })}
+                        onClick={() => handleStatusChange({ isFired: false })}
                         className="bg-green-600 hover:bg-green-700"
                       >
                         Reinstate
@@ -355,8 +804,7 @@ export function EmployeeDetail({ employee }: EmployeeDetailProps) {
                     <AlertDialogHeader>
                       <AlertDialogTitle>Are you sure you want to fire this employee?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        This will mark the employee as fired in the system and disable their account. This action can be
-                        reversed by an administrator.
+                        This will mark the employee as fired in the system and disable their account.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

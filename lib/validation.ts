@@ -40,3 +40,24 @@ export const updateEmployeeSchema = createEmployeeSchema.partial().omit({ passwo
 export const updateSalarySchema = z.object({
   salary: z.number().min(0, "Salary must be a positive number"),
 })
+
+// Personal info update schema
+export const updatePersonalInfoSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  address: z.string().optional(),
+  phone: z.string().optional(),
+  fatherName: z.string().optional(),
+  fatherPhone: z.string().optional(),
+  motherName: z.string().optional(),
+  motherPhone: z.string().optional(),
+  dateOfBirth: z.date({
+    required_error: "Date of birth is required",
+    invalid_type_error: "Date of birth must be a valid date",
+  }),
+})
+
+// Work info update schema
+export const updateWorkInfoSchema = z.object({
+  email: z.string().email("Please enter a valid email address"),
+  workRole: z.string().min(1, "Work role is required"),
+})

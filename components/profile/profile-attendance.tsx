@@ -54,23 +54,17 @@ export function ProfileAttendance({ employeeId }: ProfileAttendanceProps) {
         const result = await getEmployeeAttendance(employeeId, startOfDay(startDate), endOfDay(endDate))
 
         if (result?.status === "SUCCESS" && result.data) {
-          // Check if the data is in the expected format
-          if (result.data.attendance) {
-            const attendanceArray = result.data.attendance || []
-            setAttendanceData(attendanceArray)
+          // The response format has changed, now we get attendance directly
+          const attendanceArray = result.data || []
+          setAttendanceData(attendanceArray)
 
-            // Cache the result
-            attendanceCache.set(cacheKey, {
-              data: attendanceArray,
-              timestamp: now,
-            })
+          // Cache the result
+          attendanceCache.set(cacheKey, {
+            data: attendanceArray,
+            timestamp: now,
+          })
 
-            toast.success("Attendance data loaded successfully")
-          } else {
-            console.error("Unexpected data format:", result.data)
-            toast.error("Unexpected data format received")
-            setAttendanceData([])
-          }
+          toast.success("Attendance data loaded successfully")
         } else {
           toast.error(result?.message || "Failed to fetch attendance data")
           setAttendanceData([])

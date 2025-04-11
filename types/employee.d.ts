@@ -21,12 +21,13 @@ export interface EmployeeAttributes {
 	phone: string | undefined,
 	isActive: boolean,
 	isFired: boolean,
-	createdAt: Date,
-	updatedAt: Date,
 }
+
 
 export interface completeEmployeeAttributes extends EmployeeAttributes {
 	id: string,
+  createdAt: string,
+  updatedAt: string,
 }
 
 export interface DailyAttendanceResponse {

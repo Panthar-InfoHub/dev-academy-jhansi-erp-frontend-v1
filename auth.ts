@@ -34,7 +34,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
 
         try {
-          const userJWT = await handleEmployeeLogin(credentials.username, credentials.password)
+          const userJWT = await handleEmployeeLogin(String(credentials.username), String(credentials.password))
           if (!userJWT) return null
 
           const decodedJWT = decode(userJWT)
