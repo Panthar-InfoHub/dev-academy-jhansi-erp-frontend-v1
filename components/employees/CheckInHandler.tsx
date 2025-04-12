@@ -5,15 +5,20 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AlertTriangle, Calendar, CheckCircle, Clock, Copy, Loader2 } from "lucide-react"
 import { toast } from "sonner"
-import { endOfDay, format, startOfDay } from "date-fns"
+import { endOfDay, format, isSameDay, startOfDay } from "date-fns"
 import { getEmployeeAttendance, updateAttendance, type UpdateAttendanceParams } from "@/lib/actions/employee"
 import type { AttendanceDetailEntry } from "@/types/employee"
 import { useRouter } from "next/navigation"
-import { CHECK_IN_LAT, CHECK_IN_LNG, CHECK_IN_RADIUS } from "@/env"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 
+// Declare the variables
+const CHECK_IN_LAT = process.env.NEXT_PUBLIC_CHECK_IN_LAT
+const CHECK_IN_LNG = process.env.NEXT_PUBLIC_CHECK_IN_LNG
+const CHECK_IN_RADIUS = process.env.NEXT_PUBLIC_CHECK_IN_RADIUS
+
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  console.log("Calculating distance between coordinates:", { lat1, lon1, lat2, lon2 })
   const R = 6371e3 // metres
   const φ1 = (lat1 * Math.PI) / 180 // φ, λ in radians
   const φ2 = (lat2 * Math.PI) / 180
@@ -23,7 +28,9 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2)
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 
-  return R * c
+  const distance = R * c
+  console.log("Calculated distance:", distance, "meters")
+  return distance
 }
 
 export default function CheckInHandler({ employeeId }: { employeeId: string }) {
@@ -35,7 +42,8 @@ export default function CheckInHandler({ employeeId }: { employeeId: string }) {
   const [isCheckingIn, setIsCheckingIn] = useState(false)
   const [isTakingLeave, setIsTakingLeave] = useState(false)
   const router = useRouter()
-  const [attendanceData, setAttendanceData] = useState<AttendanceDetailEntry[] | null>(null)
+  const [attendanceData, setAttendanceData] = useState<AttendanceDetailEntry | null>(null)
+  const [noAttendanceEntry, setNoAttendanceEntry] = useState(false)
 
   const checkLocationPermission = useCallback(async () => {
     console.log("Checking location permission")
@@ -45,33 +53,40 @@ export default function CheckInHandler({ employeeId }: { employeeId: string }) {
       return
     }
 
-    const permissionStatus = await navigator.permissions.query({ name: "geolocation" })
-    setHasLocationPermission(permissionStatus.state === "granted")
-    if (permissionStatus.state === "granted") {
-      console.log("Location permission already granted")
-      getLocation()
-    } else if (permissionStatus.state === "prompt") {
-      console.log("Requesting location permission")
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          console.log("Location permission granted")
-          setHasLocationPermission(true)
-          setUserCoordinates({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-          })
-        },
-        (error) => {
-          console.error("Error getting location:", error)
-          toast.error("Location permission required to check in.")
-          setHasLocationPermission(false)
-        },
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 },
-      )
-    } else {
-      console.log("Location permission denied")
-      setHasLocationPermission(false)
-      toast.error("Location permission required to check in.")
+    try {
+      const permissionStatus = await navigator.permissions.query({ name: "geolocation" })
+      setHasLocationPermission(permissionStatus.state === "granted")
+      console.log("Location permission status:", permissionStatus.state)
+
+      if (permissionStatus.state === "granted") {
+        console.log("Location permission already granted")
+        getLocation()
+      } else if (permissionStatus.state === "prompt") {
+        console.log("Requesting location permission")
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            console.log("Location permission granted")
+            setHasLocationPermission(true)
+            setUserCoordinates({
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+            })
+          },
+          (error) => {
+            console.error("Error getting location:", error)
+            toast.error("Location permission required to check in.")
+            setHasLocationPermission(false)
+          },
+          { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 },
+        )
+      } else {
+        console.log("Location permission denied")
+        setHasLocationPermission(false)
+        toast.error("Location permission required to check in.")
+      }
+    } catch (error) {
+      console.error("Error checking location permission:", error)
+      toast.error("Failed to check location permission.")
     }
   }, [])
 
@@ -84,7 +99,10 @@ export default function CheckInHandler({ employeeId }: { employeeId: string }) {
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        console.log("Location retrieved successfully", { position })
+        console.log("Location retrieved successfully", {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        })
         setUserCoordinates({
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
@@ -100,32 +118,47 @@ export default function CheckInHandler({ employeeId }: { employeeId: string }) {
 
   const fetchAttendanceId = useCallback(async () => {
     if (!employeeId) {
+      console.log("Employee ID not found")
       toast.error("Employee ID not found. Please contact administrator.")
       return
     }
 
     setIsLoading(true)
+    setNoAttendanceEntry(false)
+
     try {
+      console.log("Fetching attendance for employee:", employeeId)
       const today = new Date()
       const startDate = startOfDay(today)
       const endDate = endOfDay(today)
 
+      console.log("Date range for attendance query:", {
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+      })
+
       const result = await getEmployeeAttendance(employeeId, startDate, endDate)
+      console.log("Attendance query result:", JSON.stringify(result))
 
       if (result?.status === "SUCCESS" && result.data && result.data.length > 0) {
-        
-        const todayAttendances = result.data.find((attendance) => startOfDay(attendance.date).toString() === today.toString())
-        
-        if (todayAttendances) {
-          toast.error("Attendance details not found. Please wait for system to sync or contact administrator.")
-          setIsLoading(false)
-          return
+        console.log("Processing attendance data:", JSON.stringify(result.data))
+
+        // Find today's attendance entry
+        const todayAttendance = result.data.find((attendance) => isSameDay(new Date(attendance.date), today))
+
+        if (todayAttendance) {
+          console.log("Found today's attendance:", JSON.stringify(todayAttendance))
+          console.log("Is today a holiday?", todayAttendance.isHoliday)
+          setAttendanceId(todayAttendance.attendanceId)
+          setAttendanceData(todayAttendance)
+        } else {
+          console.log("No attendance entry found for today")
+          setNoAttendanceEntry(true)
+          toast.error("No attendance entry found for today. Please contact administrator.")
         }
-        
-        setAttendanceId(todayAttendances.attendanceId)
-        setAttendanceData(result.data)
-        console.log("Attendance data fetched:", JSON.stringify(result.data))
       } else {
+        console.log("No attendance data returned or error in response")
+        setNoAttendanceEntry(true)
         toast.error("Attendance details not found. Please wait for system to sync or contact administrator.")
       }
     } catch (error) {
@@ -142,14 +175,21 @@ export default function CheckInHandler({ employeeId }: { employeeId: string }) {
 
   useEffect(() => {
     if (userCoordinates && CHECK_IN_LAT && CHECK_IN_LNG) {
-      const distance = calculateDistance(
-        userCoordinates.latitude,
-        userCoordinates.longitude,
-        CHECK_IN_LAT,
-        CHECK_IN_LNG,
-      )
-      setIsWithinRadius(distance <= CHECK_IN_RADIUS)
-      console.log("Distance to check-in location:", distance, "meters")
+      const checkInLat = Number.parseFloat(CHECK_IN_LAT)
+      const checkInLng = Number.parseFloat(CHECK_IN_LNG)
+      const checkInRadius = Number.parseFloat(CHECK_IN_RADIUS || "150")
+
+      console.log("Check-in location config:", {
+        CHECK_IN_LAT: checkInLat,
+        CHECK_IN_LNG: checkInLng,
+        CHECK_IN_RADIUS: checkInRadius,
+      })
+
+      const distance = calculateDistance(userCoordinates.latitude, userCoordinates.longitude, checkInLat, checkInLng)
+
+      const withinRadius = distance <= checkInRadius
+      console.log("Is within radius:", withinRadius, "Distance:", distance, "meters", "Allowed radius:", checkInRadius)
+      setIsWithinRadius(withinRadius)
     }
   }, [userCoordinates])
 
@@ -161,11 +201,13 @@ export default function CheckInHandler({ employeeId }: { employeeId: string }) {
 
   const handleCheckIn = async () => {
     if (!employeeId) {
+      console.log("Employee ID not found")
       toast.error("Employee ID not found. Please contact administrator.")
       return
     }
 
     if (!attendanceId) {
+      console.log("Attendance ID not found")
       toast.error("Attendance ID not found. Please wait for system to sync or contact administrator.")
       return
     }
@@ -173,6 +215,8 @@ export default function CheckInHandler({ employeeId }: { employeeId: string }) {
     setIsCheckingIn(true)
     try {
       const now = new Date()
+      console.log("Check-in time:", now.toISOString())
+
       const params: UpdateAttendanceParams = {
         employeeId: employeeId,
         attendanceId: attendanceId,
@@ -181,11 +225,14 @@ export default function CheckInHandler({ employeeId }: { employeeId: string }) {
         isLeave: false,
       }
 
-      console.log("Calling updateAttendance with params:", params)
+      console.log("Calling updateAttendance with params:", JSON.stringify(params))
       const result = await updateAttendance(params)
+      console.log("Update attendance result:", JSON.stringify(result))
 
       if (result?.status === "SUCCESS") {
         toast.success("Checked in successfully!")
+        // Refresh attendance data
+        await fetchAttendanceId()
         router.refresh()
       } else {
         toast.error(result?.message || "Failed to check in. Please try again.")
@@ -200,11 +247,13 @@ export default function CheckInHandler({ employeeId }: { employeeId: string }) {
 
   const handleTakeLeave = async () => {
     if (!employeeId) {
+      console.log("Employee ID not found")
       toast.error("Employee ID not found. Please contact administrator.")
       return
     }
 
     if (!attendanceId) {
+      console.log("Attendance ID not found")
       toast.error("Attendance ID not found. Please wait for system to sync or contact administrator.")
       return
     }
@@ -218,11 +267,14 @@ export default function CheckInHandler({ employeeId }: { employeeId: string }) {
         isLeave: true,
       }
 
-      console.log("Calling updateAttendance with params:", params)
+      console.log("Calling updateAttendance with params:", JSON.stringify(params))
       const result = await updateAttendance(params)
+      console.log("Update attendance result:", JSON.stringify(result))
 
       if (result?.status === "SUCCESS") {
         toast.success("Leave request submitted successfully!")
+        // Refresh attendance data
+        await fetchAttendanceId()
         router.refresh()
       } else {
         toast.error(result?.message || "Failed to submit leave request. Please try again.")
@@ -243,6 +295,21 @@ export default function CheckInHandler({ employeeId }: { employeeId: string }) {
           <p className="text-sm text-muted-foreground mt-1">Mark your attendance for today.</p>
         </CardHeader>
         <CardContent className="space-y-4 px-4 pb-4">
+          {/* No Attendance Entry Message */}
+          {noAttendanceEntry && (
+            <div className="text-center p-4 border rounded-md bg-amber-50 dark:bg-amber-950/20">
+              <AlertTriangle className="h-8 w-8 text-amber-500 mx-auto mb-2" />
+              <h3 className="text-base font-medium mb-1.5">Attendance Not Available</h3>
+              <p className="mb-3 text-sm text-muted-foreground">
+                The system has not created an attendance entry for today. Please check back later or contact an
+                administrator.
+              </p>
+              <Button onClick={fetchAttendanceId} size="sm" variant="outline">
+                Retry
+              </Button>
+            </div>
+          )}
+
           {/* Attendance ID Section */}
           {attendanceId && (
             <div className="p-3 border rounded-md bg-muted/30">
@@ -291,7 +358,9 @@ export default function CheckInHandler({ employeeId }: { employeeId: string }) {
               <AlertTriangle className="h-8 w-8 text-destructive mx-auto mb-2" />
               <h3 className="text-base font-medium mb-1.5">Outside Check-in Area</h3>
               <p className="mb-1 text-sm">You are not within the allowed check-in radius.</p>
-              <p className="text-xs text-muted-foreground">Please be within 150 meters of the designated location.</p>
+              <p className="text-xs text-muted-foreground">
+                Please be within {CHECK_IN_RADIUS || 150} meters of the designated location.
+              </p>
             </div>
           ) : (
             <div className="p-4 border rounded-md bg-green-50 dark:bg-green-950/20">
@@ -303,18 +372,27 @@ export default function CheckInHandler({ employeeId }: { employeeId: string }) {
                 </p>
               </div>
 
+              {attendanceData?.isHoliday && (
+                <div className="mb-3 p-2 bg-blue-50 dark:bg-blue-950/20 rounded-md text-center">
+                  <Calendar className="h-5 w-5 text-blue-500 mx-auto mb-1" />
+                  <p className="text-sm font-medium text-blue-700 dark:text-blue-300">Today is marked as a holiday.</p>
+                  <p className="text-xs text-blue-600 dark:text-blue-400">
+                    Check-in and leave requests are disabled on holidays.
+                  </p>
+                </div>
+              )}
+
               <div className="flex flex-col sm:flex-row justify-center gap-3 mt-4">
                 <Button
                   onClick={handleCheckIn}
                   disabled={
                     isLoading ||
                     isCheckingIn ||
-                    (attendanceId &&
-                      attendanceData?.length > 0 &&
-                      attendanceData[0].isPresent &&
-                      !attendanceData[0].isLeave)
+                    noAttendanceEntry ||
+                    (attendanceData?.isPresent && !attendanceData?.isLeave) ||
+                    attendanceData?.isHoliday
                   }
-                  aria-disabled={isLoading || isCheckingIn}
+                  aria-disabled={isLoading || isCheckingIn || noAttendanceEntry || attendanceData?.isHoliday}
                   className="w-full sm:w-auto"
                   size="sm"
                 >
@@ -323,10 +401,12 @@ export default function CheckInHandler({ employeeId }: { employeeId: string }) {
                       <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
                       Checking In...
                     </>
-                  ) : attendanceId &&
-                    attendanceData?.length > 0 &&
-                    attendanceData[0].isPresent &&
-                    !attendanceData[0].isLeave ? (
+                  ) : attendanceData?.isHoliday ? (
+                    <>
+                      <Calendar className="mr-2 h-3.5 w-3.5" />
+                      Holiday
+                    </>
+                  ) : attendanceData?.isPresent && !attendanceData?.isLeave ? (
                     <>
                       <CheckCircle className="mr-2 h-3.5 w-3.5" />
                       Already Checked In
@@ -343,9 +423,11 @@ export default function CheckInHandler({ employeeId }: { employeeId: string }) {
                   disabled={
                     isLoading ||
                     isTakingLeave ||
-                    (attendanceId && attendanceData?.length > 0 && attendanceData[0].isLeave)
+                    noAttendanceEntry ||
+                    attendanceData?.isLeave ||
+                    attendanceData?.isHoliday
                   }
-                  aria-disabled={isLoading || isTakingLeave}
+                  aria-disabled={isLoading || isTakingLeave || noAttendanceEntry || attendanceData?.isHoliday}
                   variant="outline"
                   className="w-full sm:w-auto"
                   size="sm"
@@ -355,7 +437,12 @@ export default function CheckInHandler({ employeeId }: { employeeId: string }) {
                       <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
                       Submitting Leave...
                     </>
-                  ) : attendanceId && attendanceData?.length > 0 && attendanceData[0].isLeave ? (
+                  ) : attendanceData?.isHoliday ? (
+                    <>
+                      <Calendar className="mr-2 h-3.5 w-3.5" />
+                      Holiday
+                    </>
+                  ) : attendanceData?.isLeave ? (
                     <>
                       <CheckCircle className="mr-2 h-3.5 w-3.5" />
                       Leave Submitted
@@ -372,17 +459,17 @@ export default function CheckInHandler({ employeeId }: { employeeId: string }) {
           )}
 
           {/* Attendance Status Section */}
-          {attendanceId && attendanceData && attendanceData.length > 0 && (
+          {attendanceId && attendanceData && (
             <div className="mt-4">
               <h3 className="font-medium text-base mb-2">Today's Attendance Status</h3>
               <div className="grid grid-cols-2 gap-x-3 gap-y-4 p-3 border rounded-md">
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Status</p>
-                  {attendanceData[0].isHoliday ? (
+                  {attendanceData.isHoliday ? (
                     <Badge variant="outline" className="text-xs font-normal">
                       Holiday
                     </Badge>
-                  ) : attendanceData[0].isLeave ? (
+                  ) : attendanceData.isLeave ? (
                     <Badge
                       variant="outline"
                       className={cn(
@@ -392,7 +479,7 @@ export default function CheckInHandler({ employeeId }: { employeeId: string }) {
                     >
                       On Leave
                     </Badge>
-                  ) : attendanceData[0].isPresent ? (
+                  ) : attendanceData.isPresent ? (
                     <Badge className="bg-green-500 text-xs font-normal">Present</Badge>
                   ) : (
                     <Badge variant="destructive" className="text-xs font-normal">
@@ -403,19 +490,17 @@ export default function CheckInHandler({ employeeId }: { employeeId: string }) {
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Clock In Time</p>
                   <p className="text-sm">
-                    {attendanceData[0].clockInTime
-                      ? attendanceData[0].clockInTime
-                      : "Not checked in"}
+                    {attendanceData.clockInTime ? attendanceData.clockInTime : "Not checked in"}
                   </p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Date</p>
-                  <p className="text-sm">{format(new Date(attendanceData[0].date), "MMMM d, yyyy")}</p>
+                  <p className="text-sm">{format(new Date(attendanceData.date), "MMMM d, yyyy")}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Attendance ID</p>
                   <p className="text-sm font-mono text-ellipsis overflow-hidden">
-                    {attendanceData[0].attendanceId.substring(0, 12)}...
+                    {attendanceData.attendanceId.substring(0, 12)}...
                   </p>
                 </div>
               </div>

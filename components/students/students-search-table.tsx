@@ -24,6 +24,8 @@ import {
 } from "@/components/ui/alert-dialog"
 import { format } from "date-fns"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { completeStudentDetails } from "@/types/student";
+import { completeEmployeeAttributes } from "@/types/employee";
 
 export function StudentsSearchTable() {
   const router = useRouter()
@@ -169,7 +171,7 @@ export function StudentsSearchTable() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  students.map((student) => (
+                  students.map((student: completeEmployeeAttributes) => (
                     <TableRow key={student.id}>
                       <TableCell>
                         <div className="flex items-center gap-1">
@@ -205,7 +207,7 @@ export function StudentsSearchTable() {
                       <Button
                         variant={"outline"}
                           className={"flex justify-end"}
-                          onClick={() => handleViewStudent(student.studentId)}>
+                          onClick={() => handleViewStudent(student.id)}>
                               <ExternalLink className="h-4 w-4" />
                             </Button>
                     </TooltipTrigger>
@@ -222,7 +224,7 @@ export function StudentsSearchTable() {
                     <TooltipTrigger asChild>
                       <Button
                         variant={"outline"}
-                              onClick={() => setStudentToDelete(student.studentId)}
+                              onClick={() => setStudentToDelete(student.id)}
                               className="text-red-600 flex justify-end"
                             >
                               <Trash2 className="h-4 w-4" />
