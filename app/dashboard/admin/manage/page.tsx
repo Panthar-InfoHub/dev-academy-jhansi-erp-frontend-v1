@@ -88,14 +88,14 @@ export default function ManageAdminsPage() {
           setAddAdminDialogOpen(false)
           setSelectedEmployeeId("")
           setNewAdminId("")
-          return "Admin permissions granted successfully"
+          return result.message
         } else {
           throw new Error(result?.message || "Failed to grant admin permissions")
         }
       },
       error: (error) => {
         console.error("Error granting admin permissions:", error)
-        return "An error occurred while granting admin permissions"
+        return (error as Error).message
       },
       finally: () => {
         setIsActionLoading(false)
@@ -213,7 +213,7 @@ export default function ManageAdminsPage() {
           <p className="text-muted-foreground">Select an employee to grant administrator permissions.</p>
           <Dialog open={addAdminDialogOpen} onOpenChange={setAddAdminDialogOpen}>
             <DialogTrigger asChild>
-              <Button>
+              <Button className={"mt-2"}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Administrator
               </Button>
@@ -233,7 +233,7 @@ export default function ManageAdminsPage() {
                     <SelectContent>
                       {allEmployees.map((employee) => (
                         <SelectItem key={employee.id} value={employee.id}>
-                          {`emp_${employee.id.substring(0, 7)} - ${employee.name}`}
+                          {`${((employee.id as string).replace("emp_", "")).slice(0, 8)} - ${employee.name}`}
                         </SelectItem>
                       ))}
                     </SelectContent>
