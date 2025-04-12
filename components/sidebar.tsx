@@ -26,6 +26,7 @@ import {
   Search,
   DollarSign,
   Receipt,
+  Clock,
 } from "lucide-react"
 import type { customUser } from "@/auth"
 import { handleSignOut } from "@/lib/actions/loginActions"
@@ -117,6 +118,12 @@ export function SidebarNav({ user }: SidebarProps) {
           icon: ClipboardList,
           title: "Attendance Report",
           visible: isAdmin,
+        },
+        {
+          href: "/dashboard/employee/check-in", // Add check-in link
+          icon: Clock,
+          title: "Check In",
+          visible: true, // Only visible to all
         },
       ],
     },
@@ -366,7 +373,7 @@ export function SidebarNav({ user }: SidebarProps) {
 
         <div className={cn("flex items-center gap-3 mt-4", isCollapsed && "justify-center")}>
           <Avatar className="h-9 w-9">
-            <AvatarImage src={profileImageUrl} alt={user.name} />
+            <AvatarImage src={profileImageUrl || "/placeholder.svg"} alt={user.name} />
             <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>
           {!isCollapsed && (
@@ -450,7 +457,7 @@ export function SidebarNav({ user }: SidebarProps) {
 
             <div className="flex items-center gap-3 mt-4">
               <Avatar className="h-9 w-9">
-                <AvatarImage src={profileImageUrl} alt={user.name} />
+                <AvatarImage src={profileImageUrl || "/placeholder.svg"} alt={user.name} />
                 <AvatarFallback>{initials}</AvatarFallback>
               </Avatar>
               <div className="flex flex-col overflow-hidden">

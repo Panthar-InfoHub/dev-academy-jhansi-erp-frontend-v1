@@ -612,6 +612,98 @@ export async function updateEmployeeProfileImage(employeeId: string, file:File) 
 		}
 	
 	}
+}
+
+
+export interface UpdateAttendanceParams {
+	employeeId: string;
+	attendanceId: string;
+	isPresent: boolean;
+	clockInTime?: Date;
+	isLeave: boolean;
+	isHoliday?: boolean;
+	isInvalid?: boolean;
+}
+
+/**
+ * Updates an existing attendance entry for an employee
+ * @param params - Parameters for updating attendance
+ * @returns A response with success or error status
+ */
+export async function updateAttendance(params: UpdateAttendanceParams): Promise<serverResponseParserArguments<null>> {
+	const {
+		employeeId,
+		attendanceId,
+		isPresent,
+		clockInTime,
+		isLeave,
+		isHoliday = false,
+		isInvalid = false
+	} = params;
 	
+	console.debug("Updating attendance with params:", params);
 	
+	if (!employeeId || !attendanceId) {
+		return parseServerResponse({
+			status: "ERROR",
+			message: "Employee ID and Attendance ID are required"
+		});
+	}
+	
+	try {
+		const response = await axios.patch(
+			`${BACKEND_SERVER_URL}/v1/employee/${employeeId}/attendance/${attendanceId}`,
+			{
+				isPresent,
+				clockInTime,
+				isLeave,
+				isHoliday,
+				isInvalid
+			},
+			{
+				headers: {
+					'Content-Type': 'application/json'
+				}
+			}
+		);
+		
+		const responseBody = response.data;
+		console.debug("Response body from updateAttendance:", responseBody);
+		
+		// Revalidate the attendance page to reflect changes
+		revalidatePath(`/dashboard/employee/${employeeId}/attendance`);
+		
+		return parseServerResponse<null>({
+			status: "SUCCESS",
+			message: "Attendance Updated Successfully"
+		});
+	} catch (e) {
+		console.error("Failed to update attendance with the following error:", e);
+		
+		if (e instanceof AxiosError) {
+			if (e.isAxiosError) {
+				console.debug("Update Attendance Error is Axios Error");
+				const errStatus = e.status;
+				const responseStatusCode = e.response ? e.response.status : null;
+				const responseBody = e.response ? e.response.data : null;
+				console.error("Error details:", {
+					errStatus,
+					responseStatusCode,
+					responseBody: JSON.stringify(responseBody)
+				});
+				
+				return parseServerResponse<null>({
+					status: "ERROR",
+					message: responseBody?.error || "Failed to update attendance",
+					data: null
+				});
+			}
+		}
+		
+		return parseServerResponse<null>({
+			status: "ERROR",
+			message: "An unexpected error occurred while updating attendance",
+			data: null
+		});
+	}
 }
