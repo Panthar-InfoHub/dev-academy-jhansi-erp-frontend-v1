@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { toast } from "sonner"
-import { ExternalLink, Receipt, RefreshCw } from "lucide-react"
+import { ExternalLink, Receipt, RefreshCw, ChevronDown } from "lucide-react"
 import { getPayments } from "@/lib/actions/analytics"
 import { getAllSectionsOfClassroom } from "@/lib/actions/classroom"
 import { format, subDays } from "date-fns"
@@ -17,6 +17,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { EnhancedCalendar } from "@/components/custom/date/calandar-pickup"
 import ClassroomCache from "@/lib/cache/classroom-cache"
 import type { completeClassDetails } from "@/types/classroom"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
 // Type for enrollment details with class and section info
 type EnrollmentDetails = {
@@ -208,16 +209,19 @@ export default function PaymentsPage() {
 
             <div className="flex items-center gap-2">
               <Label htmlFor="limit">Page Size</Label>
-              <select
-                id="limit"
-                className="border rounded px-2 py-1"
-                value={limit}
-                onChange={(e) => setLimit(Number(e.target.value))}
-              >
-                <option value="10">10</option>
-                <option value="20">20</option>
-                <option value="50">50</option>
-              </select>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="w-[80px]">
+                    {limit} <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onClick={() => setLimit(10)}>10</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setLimit(25)}>25</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setLimit(50)}>50</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setLimit(100)}>100</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
             <div className="flex items-center gap-2">
