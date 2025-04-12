@@ -630,7 +630,7 @@ export interface UpdateAttendanceParams {
  * @param params - Parameters for updating attendance
  * @returns A response with success or error status
  */
-export async function updateAttendance(params: UpdateAttendanceParams): Promise<serverResponseParserArguments<null>> {
+export async function updateAttendance(params: UpdateAttendanceParams) {
 	const {
 		employeeId,
 		attendanceId,
@@ -644,18 +644,24 @@ export async function updateAttendance(params: UpdateAttendanceParams): Promise<
 	console.debug("Updating attendance with params:", params);
 	
 	if (!employeeId || !attendanceId) {
-		return parseServerResponse({
+		return parseServerResponse<null>({
 			status: "ERROR",
 			message: "Employee ID and Attendance ID are required"
 		});
 	}
+	
+	
+	const hours = clockInTime?.getHours().toString().padStart(2, '0');
+  const minutes = clockInTime?.getMinutes().toString().padStart(2, '0');
+  const seconds = clockInTime?.getSeconds().toString().padStart(2, '0');
+  const clockInTimeString =  `${hours}:${minutes}:${seconds}`;
 	
 	try {
 		const response = await axios.patch(
 			`${BACKEND_SERVER_URL}/v1/employee/${employeeId}/attendance/${attendanceId}`,
 			{
 				isPresent,
-				clockInTime,
+				clockInTime: clockInTime ? clockInTimeString: undefined,
 				isLeave,
 				isHoliday,
 				isInvalid
@@ -673,9 +679,10 @@ export async function updateAttendance(params: UpdateAttendanceParams): Promise<
 		// Revalidate the attendance page to reflect changes
 		revalidatePath(`/dashboard/employee/${employeeId}/attendance`);
 		
-		return parseServerResponse<null>({
+		return parseServerResponse<any>({
 			status: "SUCCESS",
-			message: "Attendance Updated Successfully"
+			message: "Attendance Updated Successfully",
+			data: responseBody
 		});
 	} catch (e) {
 		console.error("Failed to update attendance with the following error:", e);
@@ -695,7 +702,7 @@ export async function updateAttendance(params: UpdateAttendanceParams): Promise<
 				return parseServerResponse<null>({
 					status: "ERROR",
 					message: responseBody?.error || "Failed to update attendance",
-					data: null
+					data: null,
 				});
 			}
 		}
