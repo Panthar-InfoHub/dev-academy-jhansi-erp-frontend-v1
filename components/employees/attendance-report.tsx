@@ -149,7 +149,7 @@ export function AttendanceReport() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {attendance.clockInTime ? format(new Date(attendance.clockInTime), "h:mm a") : "N/A"}
+                        {attendance.clockInTime ? attendance.clockInTime : "N/A"}
                       </TableCell>
                       <TableCell>
                         <Badge variant={attendance.isHoliday ? "secondary" : "outline"}>

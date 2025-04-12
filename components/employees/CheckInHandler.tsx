@@ -402,7 +402,7 @@ export default function CheckInHandler({employeeId}: {employeeId: string}) {
                   <p className="text-sm text-muted-foreground">Clock In Time</p>
                   <p className="font-medium">
                     {attendanceData[0].clockInTime
-                      ? format(new Date(attendanceData[0].clockInTime), "h:mm a")
+                      ? attendanceData[0].clockInTime
                       : "Not checked in"}
                   </p>
                 </div>
