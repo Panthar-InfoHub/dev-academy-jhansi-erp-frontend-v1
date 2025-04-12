@@ -12,5 +12,5 @@ export interface AllAdminDetailsResponse {
       isActive: boolean,
       isFired: boolean,
     }
-  }
+  }[]
 }

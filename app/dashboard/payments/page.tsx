@@ -1,14 +1,16 @@
 "use client"
 
+import { CardTitle } from "@/components/ui/card"
+
 import { Label } from "@/components/ui/label"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { toast } from "sonner"
 import { ExternalLink, Receipt, RefreshCw, CalendarIcon } from "lucide-react"
 import { getPayments } from "@/lib/actions/analytics"
-import { format, subDays } from "date-fns"
+import { format } from "date-fns"
 import { useRouter } from "next/navigation"
 import { PaymentReceiptDialog } from "@/components/students/payment-receipt-dialog"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -27,8 +29,8 @@ export default function PaymentsPage() {
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false)
   const router = useRouter()
 
-  const [startDate, setStartDate] = useState<Date | null>(subDays(new Date(), 7))
-  const [endDate, setEndDate] = useState<Date | null>(new Date())
+  const [startDate, setStartDate] = useState<Date | null>(null)
+  const [endDate, setEndDate] = useState<Date | null>(null)
   const [ascending, setAscending] = useState(false)
 
   useEffect(() => {
@@ -38,20 +40,14 @@ export default function PaymentsPage() {
   async function fetchPayments() {
     setIsLoading(true)
     try {
-      if (startDate && endDate) {
-        const result = await getPayments(startDate, endDate, limit, page || 1, ascending)
+      const result = await getPayments(startDate, endDate, page, limit, ascending)
 
-        if (result?.status === "SUCCESS" && result.data) {
-          setPayments(result.data.payments || [])
-          setTotalPayments(result.data.payments?.length || 0)
-          setTotalPages (Math.ceil (result.data.count / limit) || 1)
-        } else {
-          toast.error(result?.message || "Failed to fetch payments")
-        }
+      if (result?.status === "SUCCESS" && result.data) {
+        setPayments(result.data.payments || [])
+        setTotalPayments(result.data.count || 0)
+        setTotalPages(Math.ceil(result.data.count / limit) || 1)
       } else {
-        setPayments([])
-        setTotalPayments(0)
-        setTotalPages(1)
+        toast.error(result?.message || "Failed to fetch payments")
       }
     } catch (error) {
       console.error("Error fetching payments:", error)
@@ -94,7 +90,7 @@ export default function PaymentsPage() {
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {startDate ? format(startDate, "PPP") : <span>Pick a date</span>}
+                    {startDate ? <span className="mr-2">{format(startDate, "PPP")}</span> : <span>Pick a date</span>}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0">
@@ -118,7 +114,7 @@ export default function PaymentsPage() {
                     className={cn("w-[180px] justify-start text-left font-normal", !endDate && "text-muted-foreground")}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {endDate ? format(endDate, "PPP") : <span>Pick a date</span>}
+                    {endDate ? <span className="mr-2">{format(endDate, "PPP")}</span> : <span>Pick a date</span>}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0">

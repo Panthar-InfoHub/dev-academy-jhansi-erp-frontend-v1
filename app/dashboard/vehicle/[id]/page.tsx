@@ -15,7 +15,7 @@ export default async function VehicleDetailPage({ params }: VehicleDetailPagePro
   noStore()
 
   // Ensure params.id exists before proceeding
-  const vehicleId = await params?.id
+  const vehicleId = (await params).id
   if (!vehicleId) {
     notFound()
   }
