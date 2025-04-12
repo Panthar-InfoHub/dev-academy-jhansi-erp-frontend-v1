@@ -583,7 +583,7 @@ export function StudentDetail({ student }: StudentDetailProps) {
       />
 
       <NewEnrollmentDialog
-        student={studentData}
+        studentId={student.id}
         open={newEnrollmentDialogOpen}
         onOpenChange={setNewEnrollmentDialogOpen}
         onSuccess={handleEnrollmentCreated}

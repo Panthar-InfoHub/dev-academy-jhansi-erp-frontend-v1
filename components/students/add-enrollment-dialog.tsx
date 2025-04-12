@@ -19,7 +19,6 @@ import { createStudentEnrollment } from "@/lib/actions/student"
 import { getAllClassrooms, getAllSectionsOfClassroom } from "@/lib/actions/classroom"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import type { completeClassDetails, completeClassSectionDetails } from "@/types/classroom"
-import { EnhancedCalendar } from "@/components/custom/date/calandar-pickup"
 
 interface AddEnrollmentDialogProps {
   studentId: string
@@ -39,14 +38,52 @@ export function AddEnrollmentDialog({ studentId, open, onOpenChange, onSuccess }
   // Form state
   const [formData, setFormData] = useState({
     classRoomSectionId: "",
-    sessionStartDate: new Date(),
-    sessionEndDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
     monthlyFee: 0,
     isActive: true,
     one_time_fee: 0,
   })
 
+  // Date selection state
+  const [dateSelections, setDateSelections] = useState({
+    startMonth: new Date().getMonth().toString(),
+    startYear: new Date().getFullYear().toString(),
+    endMonth: new Date().getMonth().toString(),
+    endYear: (new Date().getFullYear() + 1).toString(),
+  })
+
   const [selectedClassId, setSelectedClassId] = useState<string>("")
+
+  // Helper function to get month names
+  const getMonthNames = () => [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ]
+
+  // Helper function to get year options (current year -5 to +10)
+  const getYearOptions = () => {
+    const currentYear = new Date().getFullYear()
+    const years = []
+    for (let i = currentYear - 5; i <= currentYear + 10; i++) {
+      years.push(i.toString())
+    }
+    return years
+  }
+
+  // Helper function to create date from month and year
+  const createDateFromMonthYear = (month: string, year: string) => {
+    console.log(`Creating date from month: ${month}, year: ${year}`)
+    return new Date(Number.parseInt(year), Number.parseInt(month), 1)
+  }
 
   useEffect(() => {
     if (open) {
@@ -134,11 +171,26 @@ export function AddEnrollmentDialog({ studentId, open, onOpenChange, onSuccess }
     }
   }
 
+  const handleDateSelectionChange = (field: string, value: string) => {
+    console.log(`Updating ${field} to ${value}`)
+    setDateSelections((prev) => ({
+      ...prev,
+      [field]: value,
+    }))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
 
     try {
+      // Create date objects from selections
+      const sessionStartDate = createDateFromMonthYear(dateSelections.startMonth, dateSelections.startYear)
+      const sessionEndDate = createDateFromMonthYear(dateSelections.endMonth, dateSelections.endYear)
+
+      console.log("Session start date:", sessionStartDate)
+      console.log("Session end date:", sessionEndDate)
+
       // Validate required fields
       const errors: Record<string, string> = {}
 
@@ -154,7 +206,7 @@ export function AddEnrollmentDialog({ studentId, open, onOpenChange, onSuccess }
         errors.one_time_fee = "One-time fee cannot be negative"
       }
 
-      if (formData.sessionStartDate >= formData.sessionEndDate) {
+      if (sessionStartDate >= sessionEndDate) {
         errors.sessionDates = "End date must be after start date"
       }
 
@@ -164,7 +216,14 @@ export function AddEnrollmentDialog({ studentId, open, onOpenChange, onSuccess }
         return
       }
 
-      toast.promise(createStudentEnrollment(studentId, formData), {
+      // Prepare enrollment data with the created dates
+      const enrollmentData = {
+        ...formData,
+        sessionStartDate,
+        sessionEndDate,
+      }
+
+      toast.promise(createStudentEnrollment(studentId, enrollmentData), {
         loading: "Creating enrollment...",
         success: (result) => {
           if (result?.status === "SUCCESS") {
@@ -253,21 +312,75 @@ export function AddEnrollmentDialog({ studentId, open, onOpenChange, onSuccess }
 
             <div className="grid grid-cols-4 items-center gap-4">
               <Label className="text-right">Session Start</Label>
-              <div className="col-span-3">
-                <EnhancedCalendar
-                  selected={formData.sessionStartDate}
-                  onSelect={(date) => date && setFormData((prev) => ({ ...prev, sessionStartDate: date }))}
-                />
+              <div className="col-span-3 grid grid-cols-2 gap-2">
+                <Select
+                  value={dateSelections.startMonth}
+                  onValueChange={(value) => handleDateSelectionChange("startMonth", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getMonthNames().map((month, index) => (
+                      <SelectItem key={month} value={index.toString()}>
+                        {month}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select
+                  value={dateSelections.startYear}
+                  onValueChange={(value) => handleDateSelectionChange("startYear", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getYearOptions().map((year) => (
+                      <SelectItem key={year} value={year}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
             <div className="grid grid-cols-4 items-center gap-4">
               <Label className="text-right">Session End</Label>
-              <div className="col-span-3">
-                <EnhancedCalendar
-                  selected={formData.sessionEndDate}
-                  onSelect={(date) => date && setFormData((prev) => ({ ...prev, sessionEndDate: date }))}
-                />
+              <div className="col-span-3 grid grid-cols-2 gap-2">
+                <Select
+                  value={dateSelections.endMonth}
+                  onValueChange={(value) => handleDateSelectionChange("endMonth", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getMonthNames().map((month, index) => (
+                      <SelectItem key={month} value={index.toString()}>
+                        {month}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select
+                  value={dateSelections.endYear}
+                  onValueChange={(value) => handleDateSelectionChange("endYear", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getYearOptions().map((year) => (
+                      <SelectItem key={year} value={year}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

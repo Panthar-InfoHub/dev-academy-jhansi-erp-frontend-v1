@@ -3,8 +3,6 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import type { completeStudentDetails, newEnrollmentReqBody } from "@/types/student"
-import type { completeClassDetails, completeClassSectionDetails } from "@/types/classroom"
 import {
   Dialog,
   DialogContent,
@@ -16,147 +14,168 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react"
-import { format, addMonths, subMonths } from "date-fns"
-import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { createStudentEnrollment } from "@/lib/actions/student"
 import { getAllClassrooms, getAllSectionsOfClassroom } from "@/lib/actions/classroom"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Checkbox } from "@/components/ui/checkbox"
-import { useRouter } from "next/navigation"
+import type { completeClassDetails, completeClassSectionDetails } from "@/types/classroom"
 
 interface NewEnrollmentDialogProps {
-  student: completeStudentDetails
+  studentId: string
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess?: () => void
 }
 
-export function NewEnrollmentDialog({ student, open, onOpenChange, onSuccess }: NewEnrollmentDialogProps) {
-  const router = useRouter()
+export function NewEnrollmentDialog({ studentId, open, onOpenChange, onSuccess }: NewEnrollmentDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [classrooms, setClassrooms] = useState<completeClassDetails[]>([])
   const [sections, setSections] = useState<completeClassSectionDetails[]>([])
   const [isLoadingClassrooms, setIsLoadingClassrooms] = useState(false)
   const [isLoadingSections, setIsLoadingSections] = useState(false)
-  const [startDateMonth, setStartDateMonth] = useState<Date>(new Date())
-  const [endDateMonth, setEndDateMonth] = useState<Date>(new Date(new Date().setFullYear(new Date().getFullYear() + 1)))
 
-  // Enrollment form state
-  const [formData, setFormData] = useState<newEnrollmentReqBody>({
+  // Form state
+  const [formData, setFormData] = useState({
     classRoomSectionId: "",
-    sessionStartDate: new Date(),
-    sessionEndDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
-    monthlyFee: 500, // Default to 500
+    monthlyFee: 0,
     isActive: true,
-    one_time_fee: 500, // Default to 500
+    one_time_fee: 0,
+  })
+
+  // Date selection state using dropdowns instead of calendar
+  const [dateSelections, setDateSelections] = useState({
+    startMonth: new Date().getMonth().toString(),
+    startYear: new Date().getFullYear().toString(),
+    endMonth: new Date().getMonth().toString(),
+    endYear: (new Date().getFullYear() + 1).toString(),
   })
 
   const [selectedClassId, setSelectedClassId] = useState<string>("")
 
-  // Fetch classrooms on dialog open
+  // Helper function to get month names
+  const getMonthNames = () => [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ]
+
+  // Helper function to get year options (current year -5 to +10)
+  const getYearOptions = () => {
+    const currentYear = new Date().getFullYear()
+    const years = []
+    for (let i = currentYear - 5; i <= currentYear + 10; i++) {
+      years.push(i.toString())
+    }
+    return years
+  }
+
+  // Helper function to create date from month and year
+  const createDateFromMonthYear = (month: string, year: string) => {
+    console.log(`Creating date from month: ${month}, year: ${year}`)
+    return new Date(Number.parseInt(year), Number.parseInt(month), 1)
+  }
+
   useEffect(() => {
     if (open) {
       fetchClassrooms()
     }
   }, [open])
 
-  // Fetch sections when class is selected
   useEffect(() => {
     if (selectedClassId) {
       fetchSections(selectedClassId)
     } else {
       setSections([])
+      setFormData((prev) => ({ ...prev, classRoomSectionId: "" }))
     }
   }, [selectedClassId])
 
   const fetchClassrooms = async () => {
     setIsLoadingClassrooms(true)
     try {
-      const result = await getAllClassrooms()
-      if (result) {
-        setClassrooms(result.filter((c) => c.isActive))
-      } else {
-        toast.error("Failed to fetch classrooms")
+      const response = await getAllClassrooms()
+      if (response) {
+        setClassrooms(response.filter((c) => c.isActive))
       }
     } catch (error) {
       console.error("Error fetching classrooms:", error)
-      toast.error("An error occurred while fetching classrooms")
+      toast.error("Failed to load classrooms")
     } finally {
       setIsLoadingClassrooms(false)
     }
   }
 
-  const fetchSections = async (classId: string) => {
+  const fetchSections = async (classroomId: string) => {
     setIsLoadingSections(true)
     try {
-      const result = await getAllSectionsOfClassroom(classId)
-      if (result) {
-        setSections(result.filter((s) => s.isActive))
-
-        // If there's only one section, auto-select it
-        if (result.length === 1) {
-          setFormData((prev) => ({
-            ...prev,
-            classRoomSectionId: result[0].id,
-            monthlyFee: result[0].defaultFee || 500,
-          }))
-        }
-      } else {
-        toast.error("Failed to fetch sections")
+      const response = await getAllSectionsOfClassroom(classroomId)
+      if (response) {
+        setSections(response.filter((s) => s.isActive))
       }
     } catch (error) {
       console.error("Error fetching sections:", error)
-      toast.error("An error occurred while fetching sections")
+      toast.error("Failed to load sections")
     } finally {
       setIsLoadingSections(false)
     }
   }
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target
-
-    if (type === "number") {
-      setFormData((prev) => ({
-        ...prev,
-        [name]: value !== "" ? Number(value) : 0,
-      }))
+  const handleSelectChange = (field: string, value: string) => {
+    if (field === "classroomId") {
+      setSelectedClassId(value)
     } else {
-      setFormData((prev) => ({
-        ...prev,
-        [name]: type === "checkbox" ? checked : value,
-      }))
+      setFormData((prev) => ({ ...prev, [field]: value }))
+
+      // If selecting a section, update the monthly fee based on the section's default fee
+      if (field === "classRoomSectionId") {
+        const section = sections.find((s) => s.id === value)
+        if (section) {
+          setFormData((prev) => ({ ...prev, monthlyFee: section.defaultFee }))
+        }
+      }
     }
 
     // Clear error for this field
-    if (formErrors[name]) {
+    if (formErrors[field]) {
       setFormErrors((prev) => {
         const newErrors = { ...prev }
-        delete newErrors[name]
+        delete newErrors[field]
         return newErrors
       })
     }
   }
 
-  const handleClassChange = (classId: string) => {
-    setSelectedClassId(classId)
-    // Reset section selection
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type, checked } = e.target
     setFormData((prev) => ({
       ...prev,
-      classRoomSectionId: "",
+      [name]: type === "checkbox" ? checked : type === "number" ? Number(value) : value,
     }))
+
+    // Clear error for this field
+    if (formErrors[name]) {
+      setFormErrors((prev) => ({
+        ...prev,
+        [name]: type === "checkbox" ? String(checked) : value,
+      }))
+    }
   }
 
-  const handleSectionChange = (sectionId: string) => {
-    const selectedSection = sections.find((s) => s.id === sectionId)
-    setFormData((prev) => ({
+  const handleDateSelectionChange = (field: string, value: string) => {
+    console.log(`Updating ${field} to ${value}`)
+    setDateSelections((prev) => ({
       ...prev,
-      classRoomSectionId: sectionId,
-      monthlyFee: selectedSection ? selectedSection.defaultFee || 500 : 500,
+      [field]: value,
     }))
   }
 
@@ -165,6 +184,13 @@ export function NewEnrollmentDialog({ student, open, onOpenChange, onSuccess }: 
     setIsSubmitting(true)
 
     try {
+      // Create date objects from selections
+      const sessionStartDate = createDateFromMonthYear(dateSelections.startMonth, dateSelections.startYear)
+      const sessionEndDate = createDateFromMonthYear(dateSelections.endMonth, dateSelections.endYear)
+
+      console.log("Session start date:", sessionStartDate)
+      console.log("Session end date:", sessionEndDate)
+
       // Validate required fields
       const errors: Record<string, string> = {}
 
@@ -172,8 +198,16 @@ export function NewEnrollmentDialog({ student, open, onOpenChange, onSuccess }: 
         errors.classRoomSectionId = "Section is required"
       }
 
-      if (formData.monthlyFee <= 0) {
-        errors.monthlyFee = "Monthly fee must be greater than 0"
+      if (formData.monthlyFee < 0) {
+        errors.monthlyFee = "Monthly fee cannot be negative"
+      }
+
+      if (formData.one_time_fee < 0) {
+        errors.one_time_fee = "One-time fee cannot be negative"
+      }
+
+      if (sessionStartDate >= sessionEndDate) {
+        errors.sessionDates = "End date must be after start date"
       }
 
       if (Object.keys(errors).length > 0) {
@@ -182,24 +216,27 @@ export function NewEnrollmentDialog({ student, open, onOpenChange, onSuccess }: 
         return
       }
 
-      toast.promise(createStudentEnrollment(student.id, formData), {
+      // Prepare enrollment data with the created dates
+      const enrollmentData = {
+        ...formData,
+        sessionStartDate,
+        sessionEndDate,
+      }
+
+      toast.promise(createStudentEnrollment(studentId, enrollmentData), {
         loading: "Creating enrollment...",
         success: (result) => {
           if (result?.status === "SUCCESS") {
             onOpenChange(false)
-            resetForm()
-            router.refresh() // Refresh the student details page
-            if (onSuccess) {
-              onSuccess()
-            }
-            return "Enrollment created successfully"
+            if (onSuccess) onSuccess()
+            return result.message || "Enrollment created successfully"
           } else {
             throw new Error(result?.message || "Failed to create enrollment")
           }
         },
         error: (error) => {
           console.error("Error creating enrollment:", error)
-          return "An error occurred while creating enrollment"
+          return (error as Error).message || "An error occurred while creating enrollment"
         },
         finally: () => {
           setIsSubmitting(false)
@@ -212,227 +249,197 @@ export function NewEnrollmentDialog({ student, open, onOpenChange, onSuccess }: 
     }
   }
 
-  const resetForm = () => {
-    setFormData({
-      classRoomSectionId: "",
-      sessionStartDate: new Date(),
-      sessionEndDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
-      monthlyFee: 500,
-      isActive: true,
-      one_time_fee: 500,
-    })
-    setSelectedClassId("")
-    setFormErrors({})
-    setStartDateMonth(new Date())
-    setEndDateMonth(new Date(new Date().setFullYear(new Date().getFullYear() + 1)))
-  }
-
-  const renderMonthSelect = (date: Date, setDate: (date: Date) => void) => (
-    <div className="flex items-center justify-between px-4 pt-2">
-      <Button variant="outline" size="icon" onClick={() => setDate(subMonths(date, 1))}>
-        <ChevronLeft className="h-4 w-4" />
-      </Button>
-      <div className="text-sm font-medium">{format(date, "MMMM yyyy")}</div>
-      <Button variant="outline" size="icon" onClick={() => setDate(addMonths(date, 1))}>
-        <ChevronRight className="h-4 w-4" />
-      </Button>
-    </div>
-  )
-
-  const renderCalendar = (
-    date: Date,
-    setDate: (date: Date) => void,
-    selected: Date | undefined,
-    onSelect: (date: Date) => void,
-  ) => (
-    <Calendar
-      mode="single"
-      month={date}
-      selected={selected}
-      onSelect={(date) => {
-        if (date) {
-          onSelect(date)
-        }
-      }}
-      initialFocus
-    />
-  )
-
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(newOpen) => {
-        if (!newOpen) {
-          resetForm()
-        }
-        onOpenChange(newOpen)
-      }}
-    >
-      <DialogContent className="sm:max-w-[500px]">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>Create New Enrollment</DialogTitle>
-          <DialogDescription>Create a new enrollment for {student.name}.</DialogDescription>
+          <DialogTitle>New Enrollment</DialogTitle>
+          <DialogDescription>Create a new enrollment for this student.</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="class">
-                Class <span className="text-red-500">*</span>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="classroomId" className="text-right">
+                Class
               </Label>
-              <Select value={selectedClassId} onValueChange={handleClassChange} disabled={isLoadingClassrooms}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select class" />
-                </SelectTrigger>
-                <SelectContent>
-                  {classrooms.map((classroom) => (
-                    <SelectItem key={classroom.id} value={classroom.id}>
-                      {classroom.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {formErrors.class && <p className="text-sm text-red-500">{formErrors.class}</p>}
+              <div className="col-span-3">
+                <Select
+                  value={selectedClassId}
+                  onValueChange={(value) => handleSelectChange("classroomId", value)}
+                  disabled={isLoadingClassrooms}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a class" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {classrooms.map((classroom) => (
+                      <SelectItem key={classroom.id} value={classroom.id}>
+                        {classroom.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {formErrors.classroomId && <p className="text-sm text-red-500 mt-1">{formErrors.classroomId}</p>}
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="section">
-                Section <span className="text-red-500">*</span>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="classRoomSectionId" className="text-right">
+                Section
               </Label>
-              <Select
-                value={formData.classRoomSectionId}
-                onValueChange={handleSectionChange}
-                disabled={isLoadingSections || !selectedClassId || sections.length === 0}
-              >
-                <SelectTrigger>
-                  <SelectValue
-                    placeholder={
-                      !selectedClassId
-                        ? "Select a class first"
-                        : sections.length === 0
-                          ? "No sections available"
-                          : "Select section"
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {sections.map((section) => (
-                    <SelectItem key={section.id} value={section.id}>
-                      {section.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {formErrors.classRoomSectionId && <p className="text-sm text-red-500">{formErrors.classRoomSectionId}</p>}
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="sessionStartDate">
-                  Session Start <span className="text-red-500">*</span>
-                </Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !formData.sessionStartDate && "text-muted-foreground",
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {formData.sessionStartDate ? (
-                        format(formData.sessionStartDate, "MMMM yyyy")
-                      ) : (
-                        <span>Pick a date</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    {renderMonthSelect(startDateMonth, setStartDateMonth)}
-                    {renderCalendar(startDateMonth, setStartDateMonth, formData.sessionStartDate, (date) => {
-                      const newDate = new Date(date)
-                      newDate.setDate(1)
-                      setFormData((prev) => ({ ...prev, sessionStartDate: newDate }))
-                    })}
-                  </PopoverContent>
-                </Popover>
-                {formErrors.sessionStartDate && <p className="text-sm text-red-500">{formErrors.sessionStartDate}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="sessionEndDate">
-                  Session End <span className="text-red-500">*</span>
-                </Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !formData.sessionEndDate && "text-muted-foreground",
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {formData.sessionEndDate ? (
-                        format(formData.sessionEndDate, "MMMM yyyy")
-                      ) : (
-                        <span>Pick a date</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    {renderMonthSelect(endDateMonth, setEndDateMonth)}
-                    {renderCalendar(endDateMonth, setEndDateMonth, formData.sessionEndDate, (date) => {
-                      if (date) {
-                        const newDate = new Date(date)
-                        newDate.setMonth(newDate.getMonth() + 1, 0)
-                        setFormData((prev) => ({ ...prev, sessionEndDate: newDate }))
-                      }
-                    })}
-                  </PopoverContent>
-                </Popover>
-                {formErrors.sessionEndDate && <p className="text-sm text-red-500">{formErrors.sessionEndDate}</p>}
+              <div className="col-span-3">
+                <Select
+                  value={formData.classRoomSectionId}
+                  onValueChange={(value) => handleSelectChange("classRoomSectionId", value)}
+                  disabled={isLoadingSections || !selectedClassId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a section" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sections.map((section) => (
+                      <SelectItem key={section.id} value={section.id}>
+                        {section.name} (Fee: ₹{section.defaultFee})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {formErrors.classRoomSectionId && (
+                  <p className="text-sm text-red-500 mt-1">{formErrors.classRoomSectionId}</p>
+                )}
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="monthlyFee">
-                  Monthly Fee <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="monthlyFee"
-                  name="monthlyFee"
-                  type="number"
-                  value={formData.monthlyFee}
-                  onChange={handleInputChange}
-                  min="0"
-                  required
-                />
-                {formErrors.monthlyFee && <p className="text-sm text-red-500">{formErrors.monthlyFee}</p>}
-              </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right">Session Start</Label>
+              <div className="col-span-3 grid grid-cols-2 gap-2">
+                <Select
+                  value={dateSelections.startMonth}
+                  onValueChange={(value) => handleDateSelectionChange("startMonth", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getMonthNames().map((month, index) => (
+                      <SelectItem key={month} value={index.toString()}>
+                        {month}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
 
-              <div className="space-y-2">
-                <Label htmlFor="one_time_fee">One-time Fee</Label>
-                <Input
-                  id="one_time_fee"
-                  name="one_time_fee"
-                  type="number"
-                  value={formData.one_time_fee}
-                  onChange={handleInputChange}
-                  min="0"
-                />
-                {formErrors.one_time_fee && <p className="text-sm text-red-500">{formErrors.one_time_fee}</p>}
+                <Select
+                  value={dateSelections.startYear}
+                  onValueChange={(value) => handleDateSelectionChange("startYear", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getYearOptions().map((year) => (
+                      <SelectItem key={year} value={year}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="isActive"
-                checked={formData.isActive}
-                onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, isActive: !!checked }))}
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right">Session End</Label>
+              <div className="col-span-3 grid grid-cols-2 gap-2">
+                <Select
+                  value={dateSelections.endMonth}
+                  onValueChange={(value) => handleDateSelectionChange("endMonth", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getMonthNames().map((month, index) => (
+                      <SelectItem key={month} value={index.toString()}>
+                        {month}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select
+                  value={dateSelections.endYear}
+                  onValueChange={(value) => handleDateSelectionChange("endYear", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getYearOptions().map((year) => (
+                      <SelectItem key={year} value={year}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {formErrors.sessionDates && (
+              <div className="grid grid-cols-4 items-center gap-4">
+                <div className="col-start-2 col-span-3">
+                  <p className="text-sm text-red-500">{formErrors.sessionDates}</p>
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="monthlyFee" className="text-right">
+                Monthly Fee (₹)
+              </Label>
+              <Input
+                id="monthlyFee"
+                name="monthlyFee"
+                type="number"
+                value={formData.monthlyFee}
+                onChange={handleInputChange}
+                className="col-span-3"
               />
-              <Label htmlFor="isActive">Active Enrollment</Label>
+              {formErrors.monthlyFee && (
+                <p className="text-sm text-red-500 col-start-2 col-span-3">{formErrors.monthlyFee}</p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="one_time_fee" className="text-right">
+                One-time Fee (₹)
+              </Label>
+              <Input
+                id="one_time_fee"
+                name="one_time_fee"
+                type="number"
+                value={formData.one_time_fee}
+                onChange={handleInputChange}
+                className="col-span-3"
+              />
+              {formErrors.one_time_fee && (
+                <p className="text-sm text-red-500 col-start-2 col-span-3">{formErrors.one_time_fee}</p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="isActive" className="text-right">
+                Active
+              </Label>
+              <div className="col-span-3 flex items-center">
+                <input
+                  type="checkbox"
+                  id="isActive"
+                  name="isActive"
+                  checked={formData.isActive}
+                  onChange={handleInputChange}
+                  className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                />
+              </div>
             </div>
           </div>
           <DialogFooter>
