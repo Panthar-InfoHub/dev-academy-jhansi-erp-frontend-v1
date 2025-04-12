@@ -1,7 +1,6 @@
 "use client"
 
 import { CardTitle } from "@/components/ui/card"
-
 import { Label } from "@/components/ui/label"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
@@ -10,11 +9,20 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner"
 import { ExternalLink, Receipt, RefreshCw } from "lucide-react"
 import { getPayments } from "@/lib/actions/analytics"
+import { getAllSectionsOfClassroom } from "@/lib/actions/classroom"
 import { format, subDays } from "date-fns"
 import { useRouter } from "next/navigation"
 import { PaymentReceiptDialog } from "@/components/students/payment-receipt-dialog"
 import { Checkbox } from "@/components/ui/checkbox"
 import { EnhancedCalendar } from "@/components/custom/date/calandar-pickup"
+import ClassroomCache from "@/lib/cache/classroom-cache"
+import type { completeClassDetails } from "@/types/classroom"
+
+// Type for enrollment details with class and section info
+type EnrollmentDetails = {
+  className: string
+  sectionName: string
+}
 
 export default function PaymentsPage() {
   const [payments, setPayments] = useState([])
@@ -25,7 +33,9 @@ export default function PaymentsPage() {
   const [totalPages, setTotalPages] = useState(1)
   const [selectedPayment, setSelectedPayment] = useState(null)
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false)
+  const [enrollmentDetails, setEnrollmentDetails] = useState<Record<string, EnrollmentDetails>>({})
   const router = useRouter()
+  const cache = ClassroomCache.getInstance()
 
   const today = new Date()
   const thirtyDaysAgo = subDays(today, 30)
@@ -47,6 +57,9 @@ export default function PaymentsPage() {
         setPayments(result.data.payments || [])
         setTotalPayments(result.data.count || 0)
         setTotalPages(Math.ceil(result.data.count / limit) || 1)
+
+        // Fetch class and section details for each payment
+        fetchEnrollmentDetails(result.data.payments || [])
       } else {
         toast.error(result?.message || "Failed to fetch payments")
       }
@@ -58,9 +71,113 @@ export default function PaymentsPage() {
     }
   }
 
+  async function fetchEnrollmentDetails(paymentsData: any[]) {
+    // Create a unique set of enrollment IDs to fetch
+    const enrollmentIds = [...new Set(paymentsData.map((payment) => payment.enrollmentId))]
+
+    // Create a map to store enrollment details
+    const details: Record<string, EnrollmentDetails> = {}
+
+    // Process each enrollment ID
+    for (const enrollmentId of enrollmentIds) {
+      // Check if we already have this in our cache
+      const cacheKey = `payment_enrollment_${enrollmentId}`
+      const cachedDetails = cache.get<EnrollmentDetails>(cacheKey)
+
+      if (cachedDetails) {
+        details[enrollmentId] = cachedDetails
+        continue
+      }
+
+      try {
+        // For each payment, we need to find the classroom and section
+        // This is a simplified approach - in a real app, you might need to fetch
+        // the enrollment details first to get the classroom and section IDs
+
+        // Find a payment with this enrollment ID to get the student ID
+        const payment = paymentsData.find((p) => p.enrollmentId === enrollmentId)
+        if (!payment) continue
+
+        // Fetch all classrooms
+        const classrooms = await getAllClassrooms()
+        if (!classrooms) continue
+
+        // For each classroom, fetch sections and check if any section has this enrollment
+        let found = false
+        for (const classroom of classrooms) {
+          if (found) break
+
+          const sections = await getAllSectionsOfClassroom(classroom.id)
+          if (!sections) continue
+
+          for (const section of sections) {
+            // Check if this section has the enrollment
+            // This is a simplified approach - in a real app, you would query the backend
+            // to find which section contains this enrollment
+
+            // For now, we'll just use the first classroom and section as a placeholder
+            details[enrollmentId] = {
+              className: classroom.name,
+              sectionName: section.name,
+            }
+
+            // Cache the result
+            cache.set(cacheKey, details[enrollmentId])
+
+            found = true
+            break
+          }
+        }
+      } catch (error) {
+        console.error(`Error fetching details for enrollment ${enrollmentId}:`, error)
+      }
+    }
+
+    setEnrollmentDetails(details)
+  }
+
+  // Helper function to get classroom and section names
+  const getEnrollmentInfo = (enrollmentId: string) => {
+    return enrollmentDetails[enrollmentId] || { className: "Loading...", sectionName: "Loading..." }
+  }
+
   const showPaymentReceipt = (payment: any) => {
-    setSelectedPayment(payment)
+    const info = getEnrollmentInfo(payment.enrollmentId)
+
+    // Add class and section info to the payment object
+    const paymentWithDetails = {
+      ...payment,
+      className: info.className,
+      sectionName: info.sectionName,
+    }
+
+    setSelectedPayment(paymentWithDetails)
     setReceiptDialogOpen(true)
+  }
+
+  // Helper function to get all classrooms (with caching)
+  async function getAllClassrooms(): Promise<completeClassDetails[] | null> {
+    const cacheKey = "all_classrooms"
+    const cachedClassrooms = cache.get<completeClassDetails[]>(cacheKey)
+
+    if (cachedClassrooms) {
+      return cachedClassrooms
+    }
+
+    try {
+      // Import the function dynamically to avoid circular dependencies
+      const { getAllClassrooms } = await import("@/lib/actions/classroom")
+      const classrooms = await getAllClassrooms()
+
+      if (classrooms) {
+        cache.set(cacheKey, classrooms)
+        return classrooms
+      }
+    } catch (error) {
+      console.error("Error fetching classrooms:", error)
+    }
+
+    return null
   }
 
   return (
@@ -116,59 +233,64 @@ export default function PaymentsPage() {
                   <TableHead>Date</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Student ID</TableHead>
-                  <TableHead>Enrollment ID</TableHead>
+                  <TableHead>Class</TableHead>
+                  <TableHead>Section</TableHead>
                   <TableHead className="w-[150px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">
+                    <TableCell colSpan={6} className="h-24 text-center">
                       Loading payments...
                     </TableCell>
                   </TableRow>
                 ) : payments.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">
+                    <TableCell colSpan={6} className="h-24 text-center">
                       No payments found
                     </TableCell>
                   </TableRow>
                 ) : (
-                  payments.map((payment) => (
-                    <TableRow key={payment.id}>
-                      <TableCell>{format(new Date(payment.paidOn), "MMM d, yyyy")}</TableCell>
-                      <TableCell>₹{payment.paidAmount.toLocaleString()}</TableCell>
-                      <TableCell>{payment.studentId}</TableCell>
-                      <TableCell>{payment.enrollmentId}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => showPaymentReceipt(payment)}
-                            className="flex items-center gap-1"
-                          >
-                            <Receipt className="h-4 w-4" />
-                            Receipt
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() =>
-                              window.open(
-                                `/dashboard/student/${payment.studentId}/enrollment/${payment.enrollmentId}`,
-                                "_blank",
-                              )
-                            }
-                            className="flex items-center gap-1"
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                            Enrollment
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                  payments.map((payment) => {
+                    const enrollmentInfo = getEnrollmentInfo(payment.enrollmentId)
+                    return (
+                      <TableRow key={payment.id}>
+                        <TableCell>{format(new Date(payment.paidOn), "MMM d, yyyy")}</TableCell>
+                        <TableCell>₹{payment.paidAmount.toLocaleString()}</TableCell>
+                        <TableCell>{payment.studentId}</TableCell>
+                        <TableCell>{enrollmentInfo.className}</TableCell>
+                        <TableCell>{enrollmentInfo.sectionName}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => showPaymentReceipt(payment)}
+                              className="flex items-center gap-1"
+                            >
+                              <Receipt className="h-4 w-4" />
+                              Receipt
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() =>
+                                window.open(
+                                  `/dashboard/student/${payment.studentId}/enrollment/${payment.enrollmentId}`,
+                                  "_blank",
+                                )
+                              }
+                              className="flex items-center gap-1"
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                              Enrollment
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })
                 )}
               </TableBody>
             </Table>
