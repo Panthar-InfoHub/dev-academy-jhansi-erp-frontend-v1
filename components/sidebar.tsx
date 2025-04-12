@@ -123,7 +123,7 @@ export function SidebarNav({ user }: SidebarProps) {
           href: "/dashboard/employee/check-in", // Add check-in link
           icon: Clock,
           title: "Check In",
-          visible: !isAdmin, // Only visible to non-admins (employees)
+          visible: true, // Only visible to non-admins (employees)
         },
       ],
     },
