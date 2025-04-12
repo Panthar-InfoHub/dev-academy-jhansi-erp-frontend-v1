@@ -421,7 +421,9 @@ export function SidebarNav({ user }: SidebarProps) {
           </DropdownMenu>
         )}
 
-        <div className={cn("flex items-center gap-3 mt-4", isCollapsed && "justify-center")}>
+        <div
+          onClick={() => router.push("/dashboard/profile")}
+          className={cn("flex items-center gap-3 mt-4 cursor-pointer", isCollapsed && "justify-center")}>
           <Avatar className="h-9 w-9">
             <AvatarImage src={profileImageUrl || "/placeholder.svg"} alt={user.name} />
             <AvatarFallback>{initials}</AvatarFallback>

@@ -45,6 +45,7 @@ import { cn } from "@/lib/utils"
 import { CreateExamDialog } from "./create-exam-dialog"
 import { UpdateExamDialog } from "./update-exam-dialog"
 import type { completeSubjectDetails } from "@/types/classroom"
+import { ResultCard } from "@/components/students/result-card";
 
 interface EnrollmentDetailProps {
   enrollment: completeStudentEnrollment
@@ -856,6 +857,7 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
               <CardDescription>Academic performance in theory and practical examinations</CardDescription>
             </CardHeader>
             <CardContent>
+              
               {isLoadingExams ? (
                 <div className="flex justify-center py-8">
                   <RefreshCw className="h-8 w-8 animate-spin text-primary" />
@@ -986,6 +988,18 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
                     Create First Exam
                   </Button>
                 </div>
+              )}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent>
+              {isLoadingExams ? null : (
+                <ResultCard examDetails={enrollment.examDetails}
+                          subjects={enrollment.subjects}
+                          className={enrollmentData.classRoom.name}
+                          fathersName={enrollment.student.fatherName}
+                          dob={format(new Date(enrollment.student.dateOfBirth), "dd/mm/yyyy")}
+                          studentName={enrollment.student.name} sectionName={enrollment.classSection.name} />
               )}
             </CardContent>
           </Card>
