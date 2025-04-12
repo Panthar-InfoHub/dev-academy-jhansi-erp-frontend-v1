@@ -1,138 +1,149 @@
-"use client";
+"use client"
 
-import { useState, useEffect, useCallback } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Clock, AlertTriangle, Loader2 } from 'lucide-react';
-import { toast } from "sonner";
-import { format, startOfDay, endOfDay } from "date-fns";
-import { getEmployeeAttendance, updateAttendance, UpdateAttendanceParams } from "@/lib/actions/employee";
-import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import {CHECK_IN_LAT, CHECK_IN_LNG, CHECK_IN_RADIUS} from "@/env";
-
+import { useState, useEffect, useCallback } from "react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Clock, AlertTriangle, Loader2 } from "lucide-react"
+import { toast } from "sonner"
+import { startOfDay, endOfDay } from "date-fns"
+import { getEmployeeAttendance, updateAttendance, type UpdateAttendanceParams } from "@/lib/actions/employee"
+import { useSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
+import { CHECK_IN_LAT, CHECK_IN_LNG, CHECK_IN_RADIUS } from "@/env"
 
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371e3; // metres
-  const φ1 = lat1 * Math.PI / 180; // φ, λ in radians
-  const φ2 = lat2 * Math.PI / 180;
-  const Δφ = (lat2 - lat1) * Math.PI / 180;
-  const Δλ = (lon2 - lon1) * Math.PI / 180;
+  const R = 6371e3 // metres
+  const φ1 = (lat1 * Math.PI) / 180 // φ, λ in radians
+  const φ2 = (lat2 * Math.PI) / 180
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180
+  const Δλ = ((lon2 - lon1) * Math.PI) / 180
 
-  const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-    Math.cos(φ1) * Math.cos(φ2) *
-    Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 
-  const distance = R * c;
-  return distance;
+  const distance = R * c
+  return distance
 }
 
 export default function EmployeeCheckInPage() {
-  const [hasLocationPermission, setHasLocationPermission] = useState(false);
-  const [userCoordinates, setUserCoordinates] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [isWithinRadius, setIsWithinRadius] = useState(false);
-  const [attendanceId, setAttendanceId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isCheckingIn, setIsCheckingIn] = useState(false);
-  const [isTakingLeave, setIsTakingLeave] = useState(false);
-  const { data: session } = useSession();
-  const router = useRouter();
+  const [hasLocationPermission, setHasLocationPermission] = useState(false)
+  const [userCoordinates, setUserCoordinates] = useState<{ latitude: number; longitude: number } | null>(null)
+  const [isWithinRadius, setIsWithinRadius] = useState(false)
+  const [attendanceId, setAttendanceId] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [isCheckingIn, setIsCheckingIn] = useState(false)
+  const [isTakingLeave, setIsTakingLeave] = useState(false)
+  const { data: session } = useSession()
+  const router = useRouter()
 
-  const employeeId = session?.user?.id;
+  const employeeId = session?.user?.id
 
   const checkLocationPermission = useCallback(async () => {
-    console.log("Checking location permission");
+    console.log("Checking location permission")
     if (!navigator.geolocation) {
-      toast.error("Geolocation is not supported by this browser.");
-      return;
+      console.log("Geolocation is not supported by this browser.")
+      toast.error("Geolocation is not supported by this browser.")
+      return
     }
 
-    const permissionStatus = await navigator.permissions.query({ name: 'geolocation' });
-    setHasLocationPermission(permissionStatus.state === 'granted');
-    if (permissionStatus.state === 'granted') {
-      console.log("Location permission already granted");
-      getLocation();
-    } else if (permissionStatus.state === 'prompt') {
-      console.log("Requesting location permission");
+    const permissionStatus = await navigator.permissions.query({ name: "geolocation" })
+    
+    setHasLocationPermission(permissionStatus.state === "granted")
+    
+    if (permissionStatus.state === "denied") {
+      console.log("Location permission denied")
+      setHasLocationPermission(false)
+      toast.error("Permission denied. Location permission required to check in.")
+      return
+    }
+    
+    if (permissionStatus.state === "granted") {
+      console.log("Location permission already granted")
+      console.log("Location permission already granted")
+      getLocation()
+    } else if (permissionStatus.state === "prompt") {
+      console.log("Requesting location permission")
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          console.log("Location permission granted");
-          setHasLocationPermission(true);
+          console.log("Location permission granted")
+          console.log("Location permission granted")
+          setHasLocationPermission(true)
           setUserCoordinates({
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
-          });
+          })
         },
         (error) => {
-          console.error("Error getting location:", error);
-          toast.error("Location permission required to check in.");
-          setHasLocationPermission(false);
+          console.error("Error getting location:", error)
+          console.error("Error getting location:", error)
+          toast.error("Location permission required to check in.")
+          setHasLocationPermission(false)
         },
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-      );
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 },
+      )
     } else {
-      console.log("Location permission denied");
-      setHasLocationPermission(false);
-      toast.error("Location permission required to check in.");
+      console.log("Location permission denied")
+      console.log("Location permission denied")
+      setHasLocationPermission(false)
+      toast.error("Location permission required to check in.")
     }
-  }, []);
+  }, [])
 
   const getLocation = useCallback(() => {
-    console.log("Attempting to get location");
+    console.log("Attempting to get location")
     if (!hasLocationPermission) {
-      console.log("Location permission not granted");
-      return;
+      console.log("Location permission not granted")
+      return
     }
-
-    navigator.geolocation.getCurrentPosition(
+      
+      navigator.geolocation.getCurrentPosition(
       (position) => {
-        console.log("Location retrieved successfully", {position});
+        console.log("Location retrieved successfully", { position })
         setUserCoordinates({
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
-        });
+        })
       },
       (error) => {
-        console.error("Error getting location:", error);
-        toast.error("Failed to get location. Please try again.");
+        console.error("Error getting location:", error)
+        console.error("Error getting location:", error)
+        toast.error("Failed to get location. Please try again.")
       },
-      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-    );
-  }, [hasLocationPermission]);
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 },
+    )
+  }, [hasLocationPermission])
 
   const fetchAttendanceId = useCallback(async () => {
     if (!employeeId) {
-      toast.error("Employee ID not found. Please contact administrator.");
-      return;
+      toast.error("Employee ID not found. Please contact administrator.")
+      return
     }
 
-    setIsLoading(true);
+    setIsLoading(true)
     try {
-      const today = new Date();
-      const startDate = startOfDay(today);
-      const endDate = endOfDay(today);
+      const today = new Date()
+      const startDate = startOfDay(today)
+      const endDate = endOfDay(today)
 
-      const result = await getEmployeeAttendance(employeeId, startDate, endDate);
+      const result = await getEmployeeAttendance(employeeId, startDate, endDate)
 
       if (result?.status === "SUCCESS" && result.data && result.data.length > 0) {
-        setAttendanceId(result.data[0].attendanceId);
-        console.log("Attendance ID fetched:", result.data[0].attendanceId);
+        setAttendanceId(result.data[0].attendanceId)
+        console.log("Attendance ID fetched:", result.data[0].attendanceId)
       } else {
-        toast.error("Attendance details not found. Please wait for system to sync or contact administrator.");
+        toast.error("Attendance details not found. Please wait for system to sync or contact administrator.")
       }
     } catch (error) {
-      console.error("Error fetching attendance:", error);
-      toast.error("Failed to fetch attendance details. Please try again.");
+      console.error("Error fetching attendance:", error)
+      toast.error("Failed to fetch attendance details. Please try again.")
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [employeeId]);
+  }, [employeeId])
 
   useEffect(() => {
-    checkLocationPermission();
-  }, [checkLocationPermission]);
+    checkLocationPermission()
+  }, [checkLocationPermission])
 
   useEffect(() => {
     if (userCoordinates && CHECK_IN_LAT && CHECK_IN_LNG) {
@@ -140,108 +151,108 @@ export default function EmployeeCheckInPage() {
         userCoordinates.latitude,
         userCoordinates.longitude,
         CHECK_IN_LAT,
-        CHECK_IN_LNG
-      );
-      setIsWithinRadius(distance <= CHECK_IN_RADIUS);
-      console.log("Distance to check-in location:", distance, "meters");
+        CHECK_IN_LNG,
+      )
+      setIsWithinRadius(distance <= CHECK_IN_RADIUS)
+      console.log("Distance to check-in location:", distance, "meters")
     }
-  }, [userCoordinates]);
+  }, [userCoordinates])
 
   useEffect(() => {
     if (employeeId) {
-      fetchAttendanceId();
+      fetchAttendanceId()
     }
-  }, [employeeId, fetchAttendanceId]);
+  }, [employeeId, fetchAttendanceId])
 
   const handleCheckIn = async () => {
     if (!employeeId) {
-      toast.error("Employee ID not found. Please contact administrator.");
-      return;
+      toast.error("Employee ID not found. Please contact administrator.")
+      return
     }
 
     if (!attendanceId) {
-      toast.error("Attendance ID not found. Please wait for system to sync or contact administrator.");
-      return;
+      toast.error("Attendance ID not found. Please wait for system to sync or contact administrator.")
+      return
     }
 
-    setIsCheckingIn(true);
+    setIsCheckingIn(true)
     try {
-      const now = new Date();
+      const now = new Date()
       const params: UpdateAttendanceParams = {
         employeeId: employeeId,
         attendanceId: attendanceId,
         isPresent: true,
         clockInTime: now,
         isLeave: false,
-      };
+      }
 
       // Log the parameters being sent to the action
-      console.log("Calling updateAttendance with params:", params);
+      console.log("Calling updateAttendance with params:", params)
 
       // Call the updateAttendance action
       // Assuming updateAttendance is correctly set up as a server action
       // and handles the parameters as expected
       // Await the result of the action
-      const result = await updateAttendance(params);
+      const result = await updateAttendance(params)
 
       if (result?.status === "SUCCESS") {
-        toast.success("Checked in successfully!");
+        toast.success("Checked in successfully!")
         // Optionally, refresh the attendance data or redirect
-        router.refresh();
+        router.refresh()
       } else {
-        toast.error(result?.message || "Failed to check in. Please try again.");
+        toast.error(result?.message || "Failed to check in. Please try again.")
       }
     } catch (error) {
-      console.error("Failed to check in:", error);
-      toast.error("Failed to check in. Please try again.");
+      console.error("Failed to check in:", error)
+      toast.error("Failed to check in. Please try again.")
     } finally {
-      setIsCheckingIn(false);
+      setIsCheckingIn(false)
     }
-  };
+  }
 
   const handleTakeLeave = async () => {
     if (!employeeId) {
-      toast.error("Employee ID not found. Please contact administrator.");
-      return;
+      toast.error("Employee ID not found. Please contact administrator.")
+      return
     }
 
     if (!attendanceId) {
-      toast.error("Attendance ID not found. Please wait for system to sync or contact administrator.");
-      return;
+      toast.error("Attendance ID not found. Please wait for system to sync or contact administrator.")
+      return
     }
 
-    setIsTakingLeave(true);
+    setIsTakingLeave(true)
     try {
       const params: UpdateAttendanceParams = {
         employeeId: employeeId,
         attendanceId: attendanceId,
         isPresent: false,
         isLeave: true,
-      };
+      }
 
       // Log the parameters being sent to the action
-      console.log("Calling updateAttendance with params:", params);
+      console.log("Calling updateAttendance with params:", params)
 
       // Call the updateAttendance action
       // Assuming updateAttendance is correctly set up as a server action
       // and handles the parameters as expected
       // Await the result of the action
-      const result = await updateAttendance(params);
+      const result = await updateAttendance(params)
 
       if (result?.status === "SUCCESS") {
-        toast.success("Leave request submitted successfully!");
+        toast.success("Leave request submitted successfully!")
         // Optionally, refresh the attendance data or redirect
-        router.refresh();
+        router.refresh()
       } else {
-        toast.error(result?.message || "Failed to submit leave request. Please try again.");
+        toast.error(result?.message || "Failed to submit leave request. Please try again.")
       }
     } catch (error) {
-      console.error("Failed to submit leave request:", error);
-      toast.error("Failed to submit leave request. Please try again.");
+      console.error("Failed to submit leave request:", error)
+      toast.error("Failed to submit leave request. Please try again.")
     } finally {
-      setIsTakingLeave(false);
+      setIsTakingLeave(false)
     }
-  };
+  }
 
   return (
     <div className="container mx-auto py-6">
@@ -305,5 +316,5 @@ export default function EmployeeCheckInPage() {
         </CardContent>
       </Card>
     </div>
-  );
+  )
 }
