@@ -6,10 +6,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
-import { RefreshCw, ShieldAlert } from "lucide-react"
+import { RefreshCw, ShieldAlert, Plus } from "lucide-react"
 import { getAllAdmins } from "@/lib/actions/admin"
-import { makeAdmin, removeAdmin } from "@/lib/actions/employee"
+import { makeAdmin, removeAdmin, searchEmployees } from "@/lib/actions/employee"
 import { useSession } from "next-auth/react"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 export default function ManageAdminsPage() {
   const [admins, setAdmins] = useState([])
@@ -17,9 +29,14 @@ export default function ManageAdminsPage() {
   const [isActionLoading, setIsActionLoading] = useState(false)
   const { data: session } = useSession()
   const currentUserId = session?.user?.id
+  const [addAdminDialogOpen, setAddAdminDialogOpen] = useState(false)
+  const [allEmployees, setAllEmployees] = useState([])
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState("")
+  const [newAdminId, setNewAdminId] = useState("")
 
   useEffect(() => {
     fetchAdmins()
+    fetchAllEmployees()
   }, [])
 
   async function fetchAdmins() {
@@ -39,14 +56,38 @@ export default function ManageAdminsPage() {
     }
   }
 
-  const handleMakeAdmin = async (targetEmployeeId: string) => {
+  async function fetchAllEmployees() {
+    try {
+      const response = await searchEmployees("", 1, 1000, false) // Adjust limit as needed
+      if (response?.status === "SUCCESS" && response.data) {
+        setAllEmployees(response.data)
+      } else {
+        toast.error(response?.message || "Failed to fetch employees")
+      }
+    } catch (error) {
+      console.error("Error fetching employees:", error)
+      toast.error("An error occurred while fetching employees")
+    }
+  }
+
+  const handleMakeAdmin = async () => {
     setIsActionLoading(true)
+    const targetEmployeeId = selectedEmployeeId || newAdminId
+
+    if (!targetEmployeeId) {
+      toast.error("Please select or enter an employee ID")
+      setIsActionLoading(false)
+      return
+    }
 
     toast.promise(makeAdmin(currentUserId, targetEmployeeId), {
       loading: "Granting admin permissions...",
       success: (result) => {
         if (result?.status === "SUCCESS") {
           fetchAdmins()
+          setAddAdminDialogOpen(false)
+          setSelectedEmployeeId("")
+          setNewAdminId("")
           return "Admin permissions granted successfully"
         } else {
           throw new Error(result?.message || "Failed to grant admin permissions")
@@ -91,7 +132,7 @@ export default function ManageAdminsPage() {
   }
 
   return (
-    <div className="container mx-auto">
+    <div className="container mx-auto py-10">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Manage Administrators</h1>
         <Button variant="outline" onClick={fetchAdmins} disabled={isLoading}>
@@ -170,8 +211,54 @@ export default function ManageAdminsPage() {
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground">Select an employee to grant administrator permissions.</p>
-          {/* Implement a dropdown or search to select an employee */}
-          {/* Add a button to trigger the makeAdmin action */}
+          <Dialog open={addAdminDialogOpen} onOpenChange={setAddAdminDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Administrator
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[525px]">
+              <DialogHeader>
+                <DialogTitle>Add New Administrator</DialogTitle>
+                <DialogDescription>Grant administrator permissions to an existing employee.</DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="employeeId">Select Employee</Label>
+                  <Select value={selectedEmployeeId} onValueChange={(value) => setSelectedEmployeeId(value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select an employee" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {allEmployees.map((employee) => (
+                        <SelectItem key={employee.id} value={employee.id}>
+                          {`emp_${employee.id.substring(0, 7)} - ${employee.name}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="newAdminId">Or Enter Employee ID</Label>
+                  <Input
+                    id="newAdminId"
+                    value={newAdminId}
+                    onChange={(e) => setNewAdminId(e.target.value)}
+                    placeholder="Enter employee ID"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setAddAdminDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="button" onClick={handleMakeAdmin} disabled={isActionLoading}>
+                  {isActionLoading ? "Granting..." : "Grant Permissions"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </CardContent>
       </Card>
     </div>

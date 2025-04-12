@@ -1,3 +1,5 @@
+"use server"
+
 import axios, { AxiosError } from "axios";
 import { BACKEND_SERVER_URL } from "@/env";
 import { parseServerResponse } from "@/lib/utils";
@@ -14,6 +16,12 @@ export interface dashboardAnalytics {
 	totalDuePayment : number,
 	totalVehicles : number,
 	totalFeePaymentsReceived : number,
+	monthly_revenue: {
+		month: string, // Mar 2025
+		"revenue": number, // 1000
+		monthIndex: number, // 3
+		year: number // 2025
+	}[]
 }
 
 export async function getDashboardAnalytics() {

@@ -24,8 +24,8 @@ import {
   ChevronRight,
   ClipboardList,
   Search,
-  CreditCard,
-  ShieldCheck,
+  DollarSign,
+  Receipt,
 } from "lucide-react"
 import type { customUser } from "@/auth"
 import { handleSignOut } from "@/lib/actions/loginActions"
@@ -36,7 +36,6 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { cn } from "@/lib/utils"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { CommandPalette } from "@/components/command-palette"
 
 interface SidebarProps {
   user: customUser
@@ -60,8 +59,8 @@ export function SidebarNav({ user }: SidebarProps) {
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
     Students: true, // Open by default
     Employees: true, // Open by default
-    Admin: true,
     Payments: true,
+    Admin: true,
   })
 
   // Ensure theme component only renders after mounting to prevent hydration mismatch
@@ -135,13 +134,21 @@ export function SidebarNav({ user }: SidebarProps) {
     },
     {
       href: "/dashboard/payments",
-      icon: CreditCard,
+      icon: DollarSign,
       title: "Payments",
       visible: isAdmin,
+      children: [
+        {
+          href: "/dashboard/payments",
+          icon: Receipt,
+          title: "Manage Payments",
+          visible: isAdmin,
+        },
+      ],
     },
     {
-      href: "/dashboard/admin",
-      icon: ShieldCheck,
+      href: "/dashboard/admin/manage",
+      icon: Settings,
       title: "Admin",
       visible: isAdmin,
       children: [
@@ -215,14 +222,14 @@ export function SidebarNav({ user }: SidebarProps) {
             key={item.href}
             href={item.href}
             className={cn(
-              "flex items-center gap-3 rounded-md px-3 py-2 hover:bg-accent hover:text-accent-foreground",
+              "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
               pathname === item.href ? "bg-accent text-accent-foreground" : "transparent",
               isCollapsed && "justify-center px-0",
               isNested && "pl-8", // Increased left padding for nested items
             )}
             onClick={() => isMobileMenuOpen && setIsMobileMenuOpen(false)}
           >
-            <item.icon className="h-5 w-5" />
+            <item.icon className="h-4 w-4" />
             {!isCollapsed && <span>{item.title}</span>}
           </Link>
         )
@@ -239,12 +246,12 @@ export function SidebarNav({ user }: SidebarProps) {
               <Link
                 href={item.children[0].href}
                 className={cn(
-                  "flex flex-1 items-center gap-3 rounded-md px-3 py-2 hover:bg-accent hover:text-accent-foreground",
+                  "flex flex-1 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
                   pathname === item.href ? "bg-accent text-accent-foreground" : "transparent",
                 )}
                 onClick={() => isMobileMenuOpen && setIsMobileMenuOpen(false)}
               >
-                <item.icon className="h-5 w-5" />
+                <item.icon className="h-4 w-4" />
                 <span>{item.title}</span>
               </Link>
               <CollapsibleTrigger asChild>
@@ -263,12 +270,12 @@ export function SidebarNav({ user }: SidebarProps) {
             <Link
               href={item.children[0].href}
               className={cn(
-                "flex justify-center rounded-md px-0 py-2 hover:bg-accent hover:text-accent-foreground",
+                "flex justify-center rounded-md px-0 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
                 pathname === item.href ? "bg-accent text-accent-foreground" : "transparent",
               )}
               onClick={() => isMobileMenuOpen && setIsMobileMenuOpen(false)}
             >
-              <item.icon className="h-5 w-5" />
+              <item.icon className="h-4 w-4" />
             </Link>
           )}
         </div>
@@ -281,14 +288,14 @@ export function SidebarNav({ user }: SidebarProps) {
         key={item.href}
         href={item.href}
         className={cn(
-          "flex items-center gap-3 rounded-md px-3 py-2 hover:bg-accent hover:text-accent-foreground",
+          "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
           pathname === item.href ? "bg-accent text-accent-foreground" : "transparent",
           isCollapsed && "justify-center px-0",
           isNested && "pl-8", // Increased left padding for nested items
         )}
         onClick={() => isMobileMenuOpen && setIsMobileMenuOpen(false)}
       >
-        <item.icon className="h-5 w-5" />
+        <item.icon className="h-4 w-4" />
         {!isCollapsed && <span>{item.title}</span>}
       </Link>
     )
@@ -302,9 +309,9 @@ export function SidebarNav({ user }: SidebarProps) {
         isCollapsed ? "w-[70px]" : "w-[250px]",
       )}
     >
-      <div className="flex h-16 items-center px-4 border-b">
+      <div className="flex h-14 items-center px-4 border-b">
         <Link href="/dashboard" className="flex items-center gap-3 font-semibold">
-          <School className="h-6 w-6" />
+          {/* <School className="h-6 w-6" /> */}
           {!isCollapsed && <span>{SCHOOL_NAME}</span>}
         </Link>
         <div className="ml-auto">
@@ -320,7 +327,11 @@ export function SidebarNav({ user }: SidebarProps) {
       </div>
 
       <div className="flex-1 overflow-auto py-4">
-        <nav className="grid gap-1 px-2">{routes.map((route) => renderNavItem(route))}</nav>
+        <nav className="grid gap-1 px-2">
+          {routes.map((route) => {
+            return renderNavItem(route)
+          })}
+        </nav>
       </div>
 
       <div className="border-t p-4">
@@ -391,9 +402,9 @@ export function SidebarNav({ user }: SidebarProps) {
       </SheetTrigger>
       <SheetContent side="left" className="p-0 w-[250px]">
         <div className="flex flex-col h-full">
-          <div className="flex h-16 items-center px-4 border-b">
+          <div className="flex h-14 items-center px-4 border-b">
             <Link href="/dashboard" className="flex items-center gap-3 font-semibold">
-              <School className="h-6 w-6" />
+              {/* <School className="h-6 w-6" /> */}
               <span>{SCHOOL_NAME}</span>
             </Link>
           </div>
@@ -466,7 +477,6 @@ export function SidebarNav({ user }: SidebarProps) {
       {DesktopSidebar}
       {MobileSidebar}
       <div className={cn("md:pl-[250px]", isCollapsed && "md:pl-[70px]")}></div>
-      <CommandPalette user={user} />
     </>
   )
 }

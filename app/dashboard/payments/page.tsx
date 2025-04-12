@@ -1,43 +1,57 @@
 "use client"
 
+import { Label } from "@/components/ui/label"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { toast } from "sonner"
-import { ExternalLink, Receipt, RefreshCw } from "lucide-react"
-import { getStudentPaymentsInfo } from "@/lib/actions/student"
-import { format } from "date-fns"
+import { ExternalLink, Receipt, RefreshCw, CalendarIcon } from "lucide-react"
+import { getPayments } from "@/lib/actions/analytics"
+import { format, subDays } from "date-fns"
 import { useRouter } from "next/navigation"
 import { PaymentReceiptDialog } from "@/components/students/payment-receipt-dialog"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
+import { cn } from "@/lib/utils"
+import { Checkbox } from "@/components/ui/checkbox"
 
 export default function PaymentsPage() {
   const [payments, setPayments] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [page, setPage] = useState(1)
-  const [limit] = useState(10)
+  const [limit, setLimit] = useState(10)
   const [totalPayments, setTotalPayments] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
   const [selectedPayment, setSelectedPayment] = useState(null)
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false)
   const router = useRouter()
 
+  const [startDate, setStartDate] = useState<Date | null>(subDays(new Date(), 7))
+  const [endDate, setEndDate] = useState<Date | null>(new Date())
+  const [ascending, setAscending] = useState(false)
+
   useEffect(() => {
     fetchPayments()
-  }, [page])
+  }, [page, startDate, endDate, limit, ascending])
 
   async function fetchPayments() {
     setIsLoading(true)
     try {
-      // Fetch all payments (no student ID filter)
-      const result = await getStudentPaymentsInfo("", limit, page)
+      if (startDate && endDate) {
+        const result = await getPayments(startDate, endDate, limit, page || 1, ascending)
 
-      if (result?.status === "SUCCESS" && result.data) {
-        setPayments(result.data.payments || [])
-        setTotalPayments(result.data.totalItems || 0)
-        setTotalPages(result.data.totalPages || 1)
+        if (result?.status === "SUCCESS" && result.data) {
+          setPayments(result.data.payments || [])
+          setTotalPayments(result.data.payments?.length || 0)
+          setTotalPages (Math.ceil (result.data.count / limit) || 1)
+        } else {
+          toast.error(result?.message || "Failed to fetch payments")
+        }
       } else {
-        toast.error(result?.message || "Failed to fetch payments")
+        setPayments([])
+        setTotalPayments(0)
+        setTotalPages(1)
       }
     } catch (error) {
       console.error("Error fetching payments:", error)
@@ -67,6 +81,78 @@ export default function PaymentsPage() {
           <CardTitle>Payment Records</CardTitle>
         </CardHeader>
         <CardContent>
+          <div className="flex flex-col md:flex-row gap-4 mb-4">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="startDate">Start Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-[180px] justify-start text-left font-normal",
+                      !startDate && "text-muted-foreground",
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {startDate ? format(startDate, "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={startDate}
+                    onSelect={setStartDate}
+                    disabled={(date) => date > new Date()}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Label htmlFor="endDate">End Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn("w-[180px] justify-start text-left font-normal", !endDate && "text-muted-foreground")}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {endDate ? format(endDate, "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={endDate}
+                    onSelect={setEndDate}
+                    disabled={(date) => date < startDate || date > new Date()}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Label htmlFor="limit">Page Size</Label>
+              <select
+                id="limit"
+                className="border rounded px-2 py-1"
+                value={limit}
+                onChange={(e) => setLimit(Number(e.target.value))}
+              >
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Label htmlFor="ascending">Sort Ascending</Label>
+              <Checkbox id="ascending" checked={ascending} onCheckedChange={(checked) => setAscending(!!checked)} />
+            </div>
+          </div>
+
           <div className="rounded-md border overflow-x-auto">
             <Table>
               <TableHeader>

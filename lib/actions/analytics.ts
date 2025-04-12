@@ -1,3 +1,5 @@
+"use server"
+
 import axios, { AxiosError } from "axios";
 import { BACKEND_SERVER_URL } from "@/env";
 import { parseServerResponse } from "@/lib/utils";
@@ -5,14 +7,23 @@ import { PaymentsInfoResponse } from "@/types/analytics";
 
 export async function getPayments(start_date: Date, end_date: Date, page: number = 1, limit: number = 10, ascending: boolean = false) {
   
-  console.log("Fetching payments for date range: ", start_date, end_date)
+  console.log("Fetching payments for date range: ", start_date, end_date, "page: ", page, "limit: ", limit, "ascending: ", ascending)
   
   try {
     const response = await axios.get(
-      `${BACKEND_SERVER_URL}/v1/analytics/payments-info`
+      `${BACKEND_SERVER_URL}/v1/analytics/payments-info`,
+	    {
+				params: {
+					start_date,
+					end_date,
+					page,
+					limit,
+				}
+	    }
     )
     
-    const data = response.data.payments as PaymentsInfoResponse
+    const data: PaymentsInfoResponse = response.data
+	  console.debug("Response from getPayments: ", JSON.stringify(data))
     
     return parseServerResponse<PaymentsInfoResponse>({
       status: "SUCCESS",
