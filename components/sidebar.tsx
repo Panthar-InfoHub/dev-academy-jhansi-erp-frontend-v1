@@ -56,13 +56,62 @@ export function SidebarNav({ user }: SidebarProps) {
   const { setTheme, theme } = useTheme()
   const [mounted, setMounted] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const [isCollapsed, setIsCollapsed] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(true)
+  const [showMobileMenu, setShowMobileMenu] = useState(true)
+  const [lastScrollY, setLastScrollY] = useState(0)
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
     Students: true, // Open by default
     Employees: true, // Open by default
     Payments: true,
     Admin: true,
   })
+
+  // Add localStorage to remember sidebar state
+  useEffect(() => {
+    // Check if we're in the browser environment
+    if (typeof window !== "undefined") {
+      // Try to get the saved state from localStorage
+      const savedState = localStorage.getItem("sidebarCollapsed")
+      if (savedState !== null) {
+        setIsCollapsed(savedState === "true")
+      }
+    }
+  }, [])
+
+  // Handle scroll to hide/show mobile menu
+  useEffect(() => {
+    const controlNavbar = () => {
+      if (typeof window !== "undefined") {
+        const currentScrollY = window.scrollY
+
+        if (currentScrollY > lastScrollY && currentScrollY > 20) {
+          // Scrolling down - hide the menu
+          setShowMobileMenu(false)
+        } else {
+          // Scrolling up - show the menu
+          setShowMobileMenu(true)
+        }
+
+        setLastScrollY(currentScrollY)
+      }
+    }
+
+    window.addEventListener("scroll", controlNavbar)
+
+    // Cleanup
+    return () => {
+      window.removeEventListener("scroll", controlNavbar)
+    }
+  }, [lastScrollY])
+
+  // Update the setIsCollapsed function to save state to localStorage
+  const toggleSidebar = () => {
+    const newState = !isCollapsed
+    setIsCollapsed(newState)
+    if (typeof window !== "undefined") {
+      localStorage.setItem("sidebarCollapsed", String(newState))
+    }
+  }
 
   // Ensure theme component only renders after mounting to prevent hydration mismatch
   useEffect(() => {
@@ -138,6 +187,7 @@ export function SidebarNav({ user }: SidebarProps) {
       icon: Car,
       title: "Vehicles",
       visible: isAdmin,
+      adminOnly: true,
     },
     {
       href: "/dashboard/payments",
@@ -210,7 +260,7 @@ export function SidebarNav({ user }: SidebarProps) {
     if (isMobileMenuOpen) setIsMobileMenuOpen(false)
   }
 
-  const renderNavItem = (item: NavItem, isNested = false) => {
+  const renderNavItem = (item: NavItem, isNested = false, forMobile = false) => {
     // Skip items that should not be visible to this user
     if (!item.visible || (item.adminOnly && !isAdmin)) {
       return null
@@ -231,13 +281,13 @@ export function SidebarNav({ user }: SidebarProps) {
             className={cn(
               "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
               pathname === item.href ? "bg-accent text-accent-foreground" : "transparent",
-              isCollapsed && "justify-center px-0",
+              isCollapsed && !forMobile && "justify-center px-0",
               isNested && "pl-8", // Increased left padding for nested items
             )}
             onClick={() => isMobileMenuOpen && setIsMobileMenuOpen(false)}
           >
             <item.icon className="h-4 w-4" />
-            {!isCollapsed && <span>{item.title}</span>}
+            {(!isCollapsed || forMobile) && <span>{item.title}</span>}
           </Link>
         )
       }
@@ -247,7 +297,7 @@ export function SidebarNav({ user }: SidebarProps) {
           <Collapsible
             open={openGroups[item.title]}
             onOpenChange={() => toggleGroup(item.title)}
-            className={cn(isCollapsed && "hidden")}
+            className={cn(isCollapsed && !forMobile && "hidden")}
           >
             <div className="flex items-center">
               <Link
@@ -268,12 +318,12 @@ export function SidebarNav({ user }: SidebarProps) {
               </CollapsibleTrigger>
             </div>
             <CollapsibleContent className="mt-1 space-y-1">
-              {item.children.map((child) => renderNavItem(child, true))}
+              {item.children.map((child) => renderNavItem(child, true, forMobile))}
             </CollapsibleContent>
           </Collapsible>
 
           {/* When sidebar is collapsed, show only the icon */}
-          {isCollapsed && (
+          {isCollapsed && !forMobile && (
             <Link
               href={item.children[0].href}
               className={cn(
@@ -297,13 +347,13 @@ export function SidebarNav({ user }: SidebarProps) {
         className={cn(
           "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
           pathname === item.href ? "bg-accent text-accent-foreground" : "transparent",
-          isCollapsed && "justify-center px-0",
+          isCollapsed && !forMobile && "justify-center px-0",
           isNested && "pl-8", // Increased left padding for nested items
         )}
         onClick={() => isMobileMenuOpen && setIsMobileMenuOpen(false)}
       >
         <item.icon className="h-4 w-4" />
-        {!isCollapsed && <span>{item.title}</span>}
+        {(!isCollapsed || forMobile) && <span>{item.title}</span>}
       </Link>
     )
   }
@@ -325,7 +375,7 @@ export function SidebarNav({ user }: SidebarProps) {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setIsCollapsed(!isCollapsed)}
+            onClick={toggleSidebar}
             aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {isCollapsed ? <Menu className="h-4 w-4" /> : <X className="h-4 w-4" />}
@@ -402,7 +452,14 @@ export function SidebarNav({ user }: SidebarProps) {
   const MobileSidebar = (
     <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="md:hidden fixed top-4 left-4 z-50">
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn(
+            "md:hidden fixed top-2 left-2 z-50 transition-opacity duration-300",
+            showMobileMenu ? "opacity-100" : "opacity-0 pointer-events-none",
+          )}
+        >
           <Menu className="h-6 w-6" />
           <span className="sr-only">Toggle menu</span>
         </Button>
@@ -419,12 +476,8 @@ export function SidebarNav({ user }: SidebarProps) {
           <div className="flex-1 overflow-auto py-4">
             <nav className="grid gap-1 px-2">
               {routes.map((route) => {
-                // For mobile, we'll always show the full version (not collapsed)
-                const isCollapsedBackup = isCollapsed
-                let isCollapsedTemp = false
-                const result = renderNavItem(route)
-                isCollapsedTemp = isCollapsedBackup
-                return result
+                // For mobile, always render with forMobile=true to show nested items
+                return renderNavItem(route, false, true)
               })}
             </nav>
           </div>
@@ -483,7 +536,7 @@ export function SidebarNav({ user }: SidebarProps) {
     <>
       {DesktopSidebar}
       {MobileSidebar}
-      <div className={cn("md:pl-[250px]", isCollapsed && "md:pl-[70px]")}></div>
+      <div className={cn("md:pl-[250px] pt-14 md:pt-0", isCollapsed && "md:pl-[70px]")}></div>
     </>
   )
 }
