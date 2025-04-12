@@ -50,10 +50,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { createEmployeeSchema } from "@/lib/validation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Calendar } from "@/components/ui/calendar"
-import { CalendarIcon } from "lucide-react"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { cn } from "@/lib/utils"
+import { EnhancedCalendar } from "@/components/custom/date/calandar-pickup"
 
 interface EmployeesTableProps {
   initialEmployees: completeEmployeeAttributes[]
@@ -608,33 +605,10 @@ export function EmployeesTable({ initialEmployees, initialTotalCount }: Employee
                           <Label htmlFor="dateOfBirth">
                             Date of Birth <span className="text-red-500">*</span>
                           </Label>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button
-                                variant="outline"
-                                className={cn(
-                                  "w-full justify-start text-left font-normal",
-                                  !newEmployee.dateOfBirth && "text-muted-foreground",
-                                )}
-                              >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {newEmployee.dateOfBirth ? (
-                                  format(newEmployee.dateOfBirth, "PPP")
-                                ) : (
-                                  <span>Pick a date</span>
-                                )}
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0">
-                              <Calendar
-                                mode="single"
-                                selected={newEmployee.dateOfBirth}
-                                onSelect={(date) => date && setNewEmployee((prev) => ({ ...prev, dateOfBirth: date }))}
-                                initialFocus
-                                disabled={(date) => date > new Date()}
-                              />
-                            </PopoverContent>
-                          </Popover>
+                          <EnhancedCalendar
+                            selected={newEmployee.dateOfBirth}
+                            onSelect={(date) => date && setNewEmployee((prev) => ({ ...prev, dateOfBirth: date }))}
+                          />
                           {formErrors.dateOfBirth && <p className="text-sm text-red-500">{formErrors.dateOfBirth}</p>}
                         </div>
 

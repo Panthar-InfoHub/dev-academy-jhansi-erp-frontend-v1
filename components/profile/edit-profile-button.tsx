@@ -19,6 +19,8 @@ import { Label } from "@/components/ui/label"
 import { updateEmployee } from "@/lib/actions/employee"
 import { toast } from "sonner"
 import { Pencil } from "lucide-react"
+// Import the EnhancedCalendar component at the top of the file
+import { EnhancedCalendar } from "@/components/custom/date/calandar-pickup"
 
 interface EditProfileButtonProps {
   employee: completeEmployeeAttributes
@@ -35,11 +37,24 @@ export function EditProfileButton({ employee }: EditProfileButtonProps) {
     fatherPhone: employee.fatherPhone || "",
     motherName: employee.motherName || "",
     motherPhone: employee.motherPhone || "",
+    dateOfBirth: new Date(employee.dateOfBirth), // Add this line
   })
+  const [formErrors, setFormErrors] = useState<any>(null)
 
+  // Update the handleChange function to use String(checked) for checkbox values if needed
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
+    const { name, value, type, checked } = e.target
+    setFormData((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }))
+
+    // Clear error for this field
+    if (formErrors && formErrors[name]) {
+      setFormErrors((prev) => {
+        if (!prev) return prev
+        const newErrors = { ...prev }
+        delete newErrors[name]
+        return newErrors
+      })
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -101,6 +116,17 @@ export function EditProfileButton({ employee }: EditProfileButtonProps) {
                 className="col-span-3"
                 required
               />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="dateOfBirth" className="text-right">
+                Date of Birth
+              </Label>
+              <div className="col-span-3">
+                <EnhancedCalendar
+                  selected={formData.dateOfBirth}
+                  onSelect={(date) => date && setFormData((prev) => ({ ...prev, dateOfBirth: date }))}
+                />
+              </div>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="address" className="text-right">

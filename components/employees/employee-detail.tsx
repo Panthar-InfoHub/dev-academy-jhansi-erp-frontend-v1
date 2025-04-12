@@ -42,10 +42,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { updateSalarySchema, updatePersonalInfoSchema, updateWorkInfoSchema } from "@/lib/validation"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Calendar } from "@/components/ui/calendar"
-import { CalendarIcon } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { EnhancedCalendar } from "@/components/custom/date/calandar-pickup"
 
 interface EmployeeDetailProps {
   employee: completeEmployeeAttributes
@@ -189,10 +186,10 @@ export function EmployeeDetail({ employee }: EmployeeDetailProps) {
   }
 
   const handlePersonalInfoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
+    const { name, value, type, checked } = e.target
     setPersonalInfo((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: type === "checkbox" ? checked : value,
     }))
 
     // Clear error for this field
@@ -400,7 +397,7 @@ export function EmployeeDetail({ employee }: EmployeeDetailProps) {
       <div className="flex flex-col md:flex-row gap-6 items-start">
         <div className="relative">
           <Avatar className="h-24 w-24 md:h-32 md:w-32 border-4 border-background">
-            <AvatarImage src={profileImageUrl} alt={employee.name} />
+            <AvatarImage src={profileImageUrl || "/placeholder.svg"} alt={employee.name} />
             <AvatarFallback className="text-2xl md:text-3xl">{initials}</AvatarFallback>
           </Avatar>
           <UploadProfileImage employeeId={employee.id} />
@@ -468,33 +465,10 @@ export function EmployeeDetail({ employee }: EmployeeDetailProps) {
                           Date of Birth
                         </Label>
                         <div className="col-span-3">
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button
-                                variant="outline"
-                                className={cn(
-                                  "w-full justify-start text-left font-normal",
-                                  !personalInfo.dateOfBirth && "text-muted-foreground",
-                                )}
-                              >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {personalInfo.dateOfBirth ? (
-                                  format(personalInfo.dateOfBirth, "PPP")
-                                ) : (
-                                  <span>Pick a date</span>
-                                )}
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0">
-                              <Calendar
-                                mode="single"
-                                selected={personalInfo.dateOfBirth}
-                                onSelect={(date) => date && setPersonalInfo((prev) => ({ ...prev, dateOfBirth: date }))}
-                                initialFocus
-                                disabled={(date) => date > new Date()}
-                              />
-                            </PopoverContent>
-                          </Popover>
+                          <EnhancedCalendar
+                            selected={personalInfo.dateOfBirth}
+                            onSelect={(date) => date && setPersonalInfo((prev) => ({ ...prev, dateOfBirth: date }))}
+                          />
                         </div>
                         {formErrors.dateOfBirth && (
                           <p className="text-sm text-red-500 col-start-2 col-span-3">{formErrors.dateOfBirth}</p>
