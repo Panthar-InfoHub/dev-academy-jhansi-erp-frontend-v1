@@ -8,15 +8,13 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { toast } from "sonner"
-import { ExternalLink, Receipt, RefreshCw, CalendarIcon } from "lucide-react"
+import { ExternalLink, Receipt, RefreshCw } from "lucide-react"
 import { getPayments } from "@/lib/actions/analytics"
-import { format } from "date-fns"
+import { format, subDays } from "date-fns"
 import { useRouter } from "next/navigation"
 import { PaymentReceiptDialog } from "@/components/students/payment-receipt-dialog"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Calendar } from "@/components/ui/calendar"
-import { cn } from "@/lib/utils"
 import { Checkbox } from "@/components/ui/checkbox"
+import { EnhancedCalendar } from "@/components/custom/date/calandar-pickup"
 
 export default function PaymentsPage() {
   const [payments, setPayments] = useState([])
@@ -29,8 +27,11 @@ export default function PaymentsPage() {
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false)
   const router = useRouter()
 
-  const [startDate, setStartDate] = useState<Date | null>(null)
-  const [endDate, setEndDate] = useState<Date | null>(null)
+  const today = new Date()
+  const thirtyDaysAgo = subDays(today, 30)
+
+  const [startDate, setStartDate] = useState<Date | null>(thirtyDaysAgo)
+  const [endDate, setEndDate] = useState<Date | null>(today)
   const [ascending, setAscending] = useState(false)
 
   useEffect(() => {
@@ -80,53 +81,12 @@ export default function PaymentsPage() {
           <div className="flex flex-col md:flex-row gap-4 mb-4">
             <div className="flex items-center gap-2">
               <Label htmlFor="startDate">Start Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-[180px] justify-start text-left font-normal",
-                      !startDate && "text-muted-foreground",
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {startDate ? <span className="mr-2">{format(startDate, "PPP")}</span> : <span>Pick a date</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={startDate}
-                    onSelect={setStartDate}
-                    disabled={(date) => date > new Date()}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
+              <EnhancedCalendar selected={startDate} onSelect={setStartDate} className="w-[180px]" />
             </div>
 
             <div className="flex items-center gap-2">
               <Label htmlFor="endDate">End Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn("w-[180px] justify-start text-left font-normal", !endDate && "text-muted-foreground")}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {endDate ? <span className="mr-2">{format(endDate, "PPP")}</span> : <span>Pick a date</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={endDate}
-                    onSelect={setEndDate}
-                    disabled={(date) => date < startDate || date > new Date()}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
+              <EnhancedCalendar selected={endDate} onSelect={setEndDate} className="w-[180px]" />
             </div>
 
             <div className="flex items-center gap-2">
