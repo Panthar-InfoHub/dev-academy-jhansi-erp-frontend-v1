@@ -775,6 +775,7 @@ export function EmployeesTable({ initialEmployees, initialTotalCount }: Employee
                 <TableHead className="hidden lg:table-cell">Phone</TableHead>
                 <TableHead>ID</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>View</TableHead>
                 <TableHead className="w-[80px]"></TableHead>
               </TableRow>
             </TableHeader>
@@ -831,6 +832,18 @@ export function EmployeesTable({ initialEmployees, initialTotalCount }: Employee
                       )}
                     </TableCell>
                     <TableCell>
+                      <Button
+                        variant={"outline"}
+                        className={"flex items-center justify-end"}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleViewEmployee(employee.id)
+                            }}
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </Button>
+                    </TableCell>
+                    <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                           <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -838,25 +851,6 @@ export function EmployeesTable({ initialEmployees, initialTotalCount }: Employee
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleViewEmployee(employee.id)
-                            }}
-                          >
-                            <ExternalLink className="mr-2 h-4 w-4" />
-                            View
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleCopyId(employee.id)
-                            }}
-                          >
-                            <Copy className="mr-2 h-4 w-4" />
-                            Copy ID
-                          </DropdownMenuItem>
-
                           {employee.isActive ? (
                             <DropdownMenuItem
                               onClick={(e) => {

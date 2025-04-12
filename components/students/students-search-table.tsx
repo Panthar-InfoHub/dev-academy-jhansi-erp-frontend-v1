@@ -9,9 +9,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { toast } from "sonner"
-import { Copy, ExternalLink, MoreHorizontal, RefreshCw, Search, Trash2 } from "lucide-react"
+import { Copy, ExternalLink, RefreshCw, Search, Trash2 } from "lucide-react"
 import { searchStudents, deleteStudent } from "@/lib/actions/student"
 import {
   AlertDialog,
@@ -24,6 +23,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { format } from "date-fns"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export function StudentsSearchTable() {
   const router = useRouter()
@@ -149,7 +149,8 @@ export function StudentsSearchTable() {
                   <TableHead>Father's Name</TableHead>
                   <TableHead>Mother's Name</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="w-[80px]">Actions</TableHead>
+                  <TableHead>View</TableHead>
+                  <TableHead>Delete</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -198,23 +199,41 @@ export function StudentsSearchTable() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreHorizontal className="h-4 w-4" />
+                        <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant={"outline"}
+                          className={"flex justify-end"}
+                          onClick={() => handleViewStudent(student.studentId)}>
+                              <ExternalLink className="h-4 w-4" />
                             </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleViewStudent(student.id)}>
-                              <ExternalLink className="mr-2 h-4 w-4" />
-                              View
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setStudentToDelete(student.id)} className="text-red-600">
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>View student's details</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                      
+                      </TableCell>
+                      <TableCell>
+                        <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant={"outline"}
+                              onClick={() => setStudentToDelete(student.studentId)}
+                              className="text-red-600 flex justify-end"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Delete Student</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                      
                       </TableCell>
                     </TableRow>
                   ))

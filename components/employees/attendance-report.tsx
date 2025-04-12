@@ -10,15 +10,18 @@ import { toast } from "sonner"
 import { format } from "date-fns"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, RefreshCw } from "lucide-react"
+import { Edit2Icon, Loader2, RefreshCw } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { EnhancedCalendar } from "@/components/custom/date/calandar-pickup"
+import { EditAttendanceDialog } from "@/components/employees/edit-attendance-dialog";
 
 export function AttendanceReport() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [isLoading, setIsLoading] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [attendanceData, setAttendanceData] = useState<AttendanceDetailEntry[]>([])
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [selectedAttendance, setSelectedAttendance] = useState<AttendanceDetailEntry | null>(null)
 
   const fetchAttendance = useCallback(
     async (forceRefresh = false) => {
@@ -118,6 +121,7 @@ export function AttendanceReport() {
                   <TableHead>Clock In Time</TableHead>
                   <TableHead>Holiday</TableHead>
                   <TableHead>Leave</TableHead>
+                  <TableHead>Edit</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -167,6 +171,16 @@ export function AttendanceReport() {
                           {attendance.isLeave ? "Yes" : "No"}
                         </Badge>
                       </TableCell>
+                      <TableCell>
+                        <Button
+                          onClick={() => {
+                            setSelectedAttendance(attendance)
+                            setEditDialogOpen(true)
+                          }}
+                          variant={"outline"}>
+                          <Edit2Icon className={"w-4 h-4"}/>
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -174,6 +188,21 @@ export function AttendanceReport() {
             </Table>
           </div>
         </CardContent>
+        {selectedAttendance &&
+          (<EditAttendanceDialog open={editDialogOpen}
+                                 onOpenChange={setEditDialogOpen}
+                                 attendance={selectedAttendance}
+                                 onSuccess={(data) => {
+                                   const filteredEntries = attendanceData.filter((a) => {
+                                     return a.attendanceId !== data.attendanceId
+                                   })
+                                   
+                                   setAttendanceData((prev) => {
+                                     return [...filteredEntries, data]
+                                   })
+                                   
+                                 }}
+        />)}
       </Card>
     </div>
   )

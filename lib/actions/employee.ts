@@ -413,7 +413,7 @@ export async function setDateAsHoliday(date: Date) {
 				}
 			}
 		)
-
+		revalidatePath("/dashboard/employees/attendance-report")
 		return parseServerResponse({
 			status: "SUCCESS",
 			message: response.data.message,
@@ -679,10 +679,10 @@ export async function updateAttendance(params: UpdateAttendanceParams) {
 		// Revalidate the attendance page to reflect changes
 		revalidatePath(`/dashboard/employee/${employeeId}/attendance`);
 		
-		return parseServerResponse<any>({
+		return parseServerResponse<AttendanceDetailEntry>({
 			status: "SUCCESS",
 			message: "Attendance Updated Successfully",
-			data: responseBody
+			data: responseBody.attendanceData
 		});
 	} catch (e) {
 		console.error("Failed to update attendance with the following error:", e);
@@ -699,6 +699,7 @@ export async function updateAttendance(params: UpdateAttendanceParams) {
 					responseBody: JSON.stringify(responseBody)
 				});
 				
+				revalidatePath(`/dashboard/employees/attendance-report`);
 				return parseServerResponse<null>({
 					status: "ERROR",
 					message: responseBody?.error || "Failed to update attendance",

@@ -1,15 +1,14 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { toast } from "sonner"
-import { Copy, ExternalLink, MoreHorizontal, RefreshCw, Search, Trash2, Calendar, Filter, School, BookOpen, Plus } from 'lucide-react'
+import { Copy, ExternalLink, RefreshCw, Search, Trash2, Calendar, Filter, School, BookOpen, Plus } from 'lucide-react'
 import { getClassroomStudentsInfo, getClassroomSectionStudentsInfo } from "@/lib/actions/classroom"
-import { deleteStudent, createNewStudent } from "@/lib/actions/student"
+import { deleteStudent } from "@/lib/actions/student"
 import { getAllSectionsOfClassroom } from "@/lib/actions/classroom"
 import type { completeClassDetails, completeClassSectionDetails } from "@/types/classroom"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -26,6 +25,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { format } from "date-fns"
 import { AddStudentDialog } from "@/components/students/add-student-dialog"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface StudentsTableProps {
   initialClassrooms: completeClassDetails[]
@@ -313,7 +313,8 @@ export function StudentsTable({ initialClassrooms }: StudentsTableProps) {
                   <TableHead>Father's Name</TableHead>
                   <TableHead>Mother's Name</TableHead>
                   <TableHead>Contact</TableHead>
-                  <TableHead className="w-[80px]">Actions</TableHead>
+                  <TableHead>View</TableHead>
+                  <TableHead>Delete</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -362,26 +363,39 @@ export function StudentsTable({ initialClassrooms }: StudentsTableProps) {
                       <TableCell>{student.student?.motherName || "N/A"}</TableCell>
                       <TableCell>{student.student?.fatherPhone || student.student?.motherPhone || "N/A"}</TableCell>
                       <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleViewStudent(student.studentId)}>
+                        <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div
+                          className={"flex justify-self-center"}
+                          onClick={() => handleViewStudent(student.studentId)}>
                               <ExternalLink className="mr-2 h-4 w-4" />
-                              View
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
+                            </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>View student's details</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                      
+                      </TableCell>
+                      <TableCell>
+                        <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div
                               onClick={() => setStudentToDelete(student.studentId)}
-                              className="text-red-600"
+                              className="text-red-600 flex justify-self-center"
                             >
                               <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                            </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Delete Student</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                      
                       </TableCell>
                     </TableRow>
                   ))
@@ -406,7 +420,7 @@ export function StudentsTable({ initialClassrooms }: StudentsTableProps) {
             <AlertDialogAction
               onClick={handleDeleteStudent}
               disabled={isDeleting}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-red-600 hover:bg-red-700 text-white"
             >
               {isDeleting ? "Deleting..." : "Delete"}
             </AlertDialogAction>
