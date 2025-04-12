@@ -16,15 +16,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon, Plus, Trash2 } from "lucide-react"
-import { format } from "date-fns"
-import { cn } from "@/lib/utils"
+import { Plus, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { createNewStudent } from "@/lib/actions/student"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import type { identityEntry } from "@/types/employee"
+import { EnhancedCalendar } from "@/components/custom/date/calandar-pickup"
 
 interface AddStudentDialogProps {
   open: boolean
@@ -63,11 +60,10 @@ export function AddStudentDialog({ open, onOpenChange, onSuccess }: AddStudentDi
 
     // Clear error for this field
     if (formErrors[name]) {
-      setFormErrors((prev) => {
-        const newErrors = { ...prev }
-        delete newErrors[name]
-        return newErrors
-      })
+      setFormErrors((prev) => ({
+        ...prev,
+        [name]: type === "checkbox" ? String(checked) : value,
+      }))
     }
   }
 
@@ -95,11 +91,11 @@ export function AddStudentDialog({ open, onOpenChange, onSuccess }: AddStudentDi
 
     // Clear error for ids
     if (formErrors.ids) {
-      setFormErrors((prev) => {
-        const newErrors = { ...prev }
-        delete newErrors.ids
-        return newErrors
-      })
+      setFormErrors((prev) => ({
+        ...prev,
+        ids: "Both ID type and value are required",
+      }))
+      return
     }
   }
 
@@ -223,29 +219,10 @@ export function AddStudentDialog({ open, onOpenChange, onSuccess }: AddStudentDi
                     <Label htmlFor="dateOfBirth">
                       Date of Birth <span className="text-red-500">*</span>
                     </Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full justify-start text-left font-normal",
-                            !newStudent.dateOfBirth && "text-muted-foreground",
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {newStudent.dateOfBirth ? format(newStudent.dateOfBirth, "PPP") : <span>Pick a date</span>}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar
-                          mode="single"
-                          selected={newStudent.dateOfBirth}
-                          onSelect={(date) => date && setNewStudent((prev) => ({ ...prev, dateOfBirth: date }))}
-                          initialFocus
-                          disabled={(date) => date > new Date()}
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <EnhancedCalendar
+                      selected={newStudent.dateOfBirth}
+                      onSelect={(date) => date && setNewStudent((prev) => ({ ...prev, dateOfBirth: date }))}
+                    />
                     {formErrors.dateOfBirth && <p className="text-sm text-red-500">{formErrors.dateOfBirth}</p>}
                   </div>
 

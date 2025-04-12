@@ -1,9 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Calendar } from "@/components/ui/calendar"
 import { getDailyAttendance } from "@/lib/actions/employee"
 import { generateDailyAttendanceEntries } from "@/lib/actions/admin"
 import type { AttendanceDetailEntry } from "@/types/employee.d"
@@ -11,9 +10,9 @@ import { toast } from "sonner"
 import { format } from "date-fns"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, RefreshCw, CalendarIcon } from "lucide-react"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Loader2, RefreshCw } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { EnhancedCalendar } from "@/components/custom/date/calandar-pickup"
 
 export function AttendanceReport() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
@@ -21,34 +20,37 @@ export function AttendanceReport() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [attendanceData, setAttendanceData] = useState<AttendanceDetailEntry[]>([])
 
-  const fetchAttendance = async () => {
-    setIsLoading(true)
-    try {
-      const result = await getDailyAttendance(selectedDate)
+  const fetchAttendance = useCallback(
+    async (forceRefresh = false) => {
+      setIsLoading(true)
+      try {
+        const result = await getDailyAttendance(selectedDate)
 
-      if (result?.status === "SUCCESS" && result.data) {
-        // Check if the data is in the expected format
-        if (result.data.attendanceData) {
-          setAttendanceData(result.data.attendanceData || [])
-        } else if (result.data.attendance) {
-          setAttendanceData(result.data.attendance || [])
+        if (result?.status === "SUCCESS" && result.data) {
+          // Check if the data is in the expected format
+          if (result.data.attendanceData) {
+            setAttendanceData(result.data.attendanceData || [])
+          } else if (result.data.attendance) {
+            setAttendanceData(result.data.attendance || [])
+          } else {
+            console.error("Unexpected data format:", result.data)
+            setAttendanceData([])
+          }
+          toast.success("Attendance data loaded successfully")
         } else {
-          console.error("Unexpected data format:", result.data)
+          toast.error(result?.message || "Failed to fetch attendance data")
           setAttendanceData([])
         }
-        toast.success("Attendance data loaded successfully")
-      } else {
-        toast.error(result?.message || "Failed to fetch attendance data")
+      } catch (error) {
+        toast.error("An error occurred while fetching attendance data")
+        console.error(error)
         setAttendanceData([])
+      } finally {
+        setIsLoading(false)
       }
-    } catch (error) {
-      toast.error("An error occurred while fetching attendance data")
-      console.error(error)
-      setAttendanceData([])
-    } finally {
-      setIsLoading(false)
-    }
-  }
+    },
+    [selectedDate],
+  )
 
   const generateAttendance = async () => {
     setIsGenerating(true)
@@ -71,7 +73,7 @@ export function AttendanceReport() {
 
   useEffect(() => {
     fetchAttendance()
-  }, [selectedDate])
+  }, [fetchAttendance])
 
   return (
     <div className="space-y-6">
@@ -81,27 +83,17 @@ export function AttendanceReport() {
         </CardHeader>
         <CardContent>
           <div className="flex flex-col md:flex-row gap-4 mb-6 justify-between">
-            <div className="flex items-center gap-2">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-[240px] justify-start text-left font-normal">
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {format(selectedDate, "PPP")}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={(date) => date && setSelectedDate(date)}
-                    disabled={(date) => date > new Date()}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
+            <div className="flex items-center gap-4">
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Select Date</p>
+                <EnhancedCalendar
+                  selected={selectedDate}
+                  onSelect={(date) => date && setSelectedDate(date)}
+                />
+              </div>
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={fetchAttendance} disabled={isLoading}>
+            <div className="flex gap-2 self-start">
+              <Button variant="outline" onClick={() => fetchAttendance(true)} disabled={isLoading}>
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Refresh
               </Button>
@@ -168,7 +160,6 @@ export function AttendanceReport() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {/* Fix: Use custom styling instead of invalid "warning" variant */}
                         <Badge
                           variant="outline"
                           className={cn(
