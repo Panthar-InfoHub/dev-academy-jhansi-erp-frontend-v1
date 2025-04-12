@@ -76,7 +76,7 @@ export interface completeStudentEnrollment {
 	monthlyFee: number,
 	isActive: boolean,
 	student: completeStudentDetails | undefined,
-	subjects: subject[],
+	subjects: examEntrySubject[],
 	isComplete: boolean,
 	one_time_fee: number,
 	classRoom: completeClassDetails| undefined,

@@ -26,7 +26,7 @@ import { EnhancedCalendar } from "@/components/custom/date/calandar-pickup"
 interface AddStudentDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSuccess?: () => void
+  onSuccess?: (studentId:string) => void
 }
 
 export function AddStudentDialog({ open, onOpenChange, onSuccess }: AddStudentDialogProps) {
@@ -139,6 +139,7 @@ export function AddStudentDialog({ open, onOpenChange, onSuccess }: AddStudentDi
 
       if (Object.keys(errors).length > 0) {
         setFormErrors(errors)
+        
         setIsSubmitting(false)
         return
       }
@@ -149,7 +150,7 @@ export function AddStudentDialog({ open, onOpenChange, onSuccess }: AddStudentDi
           if (result?.status === "SUCCESS") {
             onOpenChange(false)
             resetForm()
-            if (onSuccess) onSuccess()
+            if (onSuccess) onSuccess(result.data.id)
             return "Student added successfully"
           } else {
             throw new Error(result?.message || "Failed to add student")

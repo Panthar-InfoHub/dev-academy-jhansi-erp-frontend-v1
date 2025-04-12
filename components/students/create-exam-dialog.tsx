@@ -205,7 +205,7 @@ export function CreateExamDialog({ open, onOpenChange, studentId, enrollmentId, 
                   <Calendar
                     mode="single"
                     selected={formData.examDate}
-                    onSelect={(date) => date && setFormData((prev) => ({ ...prev, examDate: date }))}
+                    onSelect={(date) => date && setFormData((prev) => ({ ...prev, examDate: normalizeDate(date) }))}
                     initialFocus
                   />
                 </PopoverContent>
@@ -224,4 +224,8 @@ export function CreateExamDialog({ open, onOpenChange, studentId, enrollmentId, 
       </DialogContent>
     </Dialog>
   )
+}
+
+function normalizeDate(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate())
 }

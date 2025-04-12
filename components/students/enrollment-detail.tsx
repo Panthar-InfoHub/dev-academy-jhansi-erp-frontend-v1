@@ -1,28 +1,14 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import type { completeStudentEnrollment, monthlyFeeEntry, examEntry, examEntrySubject } from "@/types/student"
+import type { completeStudentEnrollment, examEntry } from "@/types/student"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { format, isBefore, isAfter } from "date-fns"
 import { toast } from "sonner"
-import {
-  ArrowLeft,
-  Pencil,
-  Trash2,
-  Copy,
-  BookOpen,
-  CreditCard,
-  Receipt,
-  Calendar,
-  Clock,
-  Plus,
-  RefreshCw,
-} from "lucide-react"
-import { deleteEnrollment, getEnrollmentDetails, deleteExamEntry } from "@/lib/actions/student"
+import { ArrowLeft, Pencil, Trash2, Copy, UserPlus, RefreshCw, Receipt, MoreHorizontal, Loader2 } from "lucide-react"
+import { BACKEND_SERVER_URL } from "@/env"
+import { deleteStudent, getStudentPaymentsInfo } from "@/lib/actions/student"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,17 +20,17 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Separator } from "@/components/ui/separator"
-import { EditEnrollmentDialog } from "./edit-enrollment-dialog"
-import { PayFeesDialog } from "./pay-fees-dialog"
-import { PaymentReceiptDialog } from "./payment-receipt-dialog"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { BACKEND_SERVER_URL } from "@/env"
-import { cn } from "@/lib/utils"
 import { CreateExamDialog } from "./create-exam-dialog"
 import { UpdateExamDialog } from "./update-exam-dialog"
-import type { completeSubjectDetails } from "@/types/classroom"
+import { deleteExamEntry } from "@/lib/actions/student"
+import { format } from "date-fns"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { PayFeesDialog } from "./pay-fees-dialog"
+import { ResultCard } from "./result-card"
+import { useRouter } from "next/navigation"
+import { TableBody, TableCell, TableHead, TableRow } from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 interface EnrollmentDetailProps {
   enrollment: completeStudentEnrollment
@@ -52,1010 +38,439 @@ interface EnrollmentDetailProps {
 }
 
 export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProps) {
-  const router = useRouter()
-  const [activeTab, setActiveTab] = useState("fees") // Set default tab to "fees"
-  const [isDeleting, setIsDeleting] = useState(false)
-  const [sortedMonthlyFees, setSortedMonthlyFees] = useState<monthlyFeeEntry[]>([])
-  const [feeSummary, setFeeSummary] = useState({
-    totalAmount: 0,
-    paidAmount: 0,
-    dueAmount: 0,
-    futureAmount: 0,
-  })
-  const [editDialogOpen, setEditDialogOpen] = useState(false)
-  const [payFeesDialogOpen, setPayFeesDialogOpen] = useState(false)
-  const [selectedPayment, setSelectedPayment] = useState<any>(null)
-  const [receiptDialogOpen, setReceiptDialogOpen] = useState(false)
-  const [enrollmentData, setEnrollmentData] = useState<completeStudentEnrollment>(enrollment)
-  const [allFeesPaid, setAllFeesPaid] = useState(false)
-  const [createExamDialogOpen, setCreateExamDialogOpen] = useState(false)
-  const [updateExamDialogOpen, setUpdateExamDialogOpen] = useState(false)
-  const [selectedExam, setSelectedExam] = useState<examEntry | null>(null)
-  const [isLoadingExams, setIsLoadingExams] = useState(false)
-  const [examsByTerm, setExamsByTerm] = useState<Record<string, examEntry[]>>({})
-  const [examToDelete, setExamToDelete] = useState<{ examId: string; examName: string } | null>(null)
-  const [isDeletingExam, setIsDeletingExam] = useState(false)
-
-  // Get student initials for avatar
-  const studentName = enrollmentData.student?.name || "Student"
-  const initials = studentName
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2)
-
-  const profileImageUrl = `${BACKEND_SERVER_URL}/v1/student/${enrollmentData.studentId}/profileImg`
-
-  useEffect(() => {
-    if (enrollmentData.monthlyFees) {
-      // Sort monthly fees by due date (ascending)
-      const sorted = [...enrollmentData.monthlyFees].sort((a, b) => {
-        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
-      })
-      setSortedMonthlyFees(sorted)
-
-      // Calculate fee summary
-      const now = new Date()
-      let totalAmount = 0
-      let paidAmount = 0
-      let dueAmount = 0
-      let futureAmount = 0
-
-      sorted.forEach((fee) => {
-        const dueDate = new Date(fee.dueDate)
-        totalAmount += fee.feeDue
-        paidAmount += fee.amountPaid
-
-        if (isBefore(dueDate, now) && fee.balance > 0) {
-          dueAmount += fee.balance
-        } else if (isAfter(dueDate, now)) {
-          futureAmount += fee.balance
-        }
-      })
-
-      setFeeSummary({
-        totalAmount,
-        paidAmount,
-        dueAmount,
-        futureAmount,
-      })
-
-      // Check if all fees are paid
-      setAllFeesPaid(dueAmount === 0 && totalAmount === paidAmount)
-    }
-  }, [enrollmentData.monthlyFees])
-
-  useEffect(() => {
-    if (enrollmentData.examDetails) {
-      organizeExamsByTerm(enrollmentData.examDetails)
-    }
-  }, [enrollmentData.examDetails])
-
-  const organizeExamsByTerm = (exams: examEntry[]) => {
-    const groupedExams: Record<string, examEntry[]> = {}
-
-    exams.forEach((exam) => {
-      const term = exam.note || "Uncategorized"
-      if (!groupedExams[term]) {
-        groupedExams[term] = []
-      }
-      groupedExams[term].push(exam)
-    })
-
-    // Sort terms in order (Term I, Term II, Term III, Term IV, others)
-    const sortedGroupedExams: Record<string, examEntry[]> = {}
-    const termOrder = ["Term I", "Term II", "Term III", "Term IV"]
-
-    // Add terms in order
-    termOrder.forEach((term) => {
-      if (groupedExams[term]) {
-        sortedGroupedExams[term] = groupedExams[term]
-        delete groupedExams[term]
-      }
-    })
-
-    // Add remaining terms
-    Object.keys(groupedExams)
-      .sort()
-      .forEach((term) => {
-        sortedGroupedExams[term] = groupedExams[term]
-      })
-
-    setExamsByTerm(sortedGroupedExams)
-  }
-
-  const handleDeleteEnrollment = async () => {
-    setIsDeleting(true)
-
-    toast.promise(deleteEnrollment(studentId, enrollmentData.id, false), {
-      loading: "Deleting enrollment...",
-      success: (result) => {
-        if (result?.status === "SUCCESS") {
-          router.push(`/dashboard/student/${studentId}`)
-          return result.message || "Enrollment deleted successfully"
-        } else {
-          throw new Error(result?.message || "Failed to delete enrollment")
-        }
-      },
-      error: (error) => {
-        console.error("Error deleting enrollment:", error)
-        return error.message || "An error occurred while deleting enrollment"
-      },
-      finally: () => {
-        setIsDeleting(false)
-      },
-    })
-  }
-
-  const handleDeleteExam = async () => {
-    if (!examToDelete) return
-
-    setIsDeletingExam(true)
-
-    console.log("Deleting exam:", examToDelete.examId)
-
-    toast.promise(deleteExamEntry(studentId, enrollmentData.id, examToDelete.examId), {
-      loading: "Deleting exam...",
-      success: (result) => {
-        if (result?.status === "SUCCESS") {
-          setExamToDelete(null)
-          // Use window.location.reload() to ensure the latest data is displayed
-          window.location.reload()
-          return "Exam deleted successfully"
-        } else {
-          throw new Error(result?.message || "Failed to delete exam")
-        }
-      },
-      error: (error) => {
-        console.error("Error deleting exam:", error)
-        return error.message || "An error occurred while deleting exam"
-      },
-      finally: () => {
-        setIsDeletingExam(false)
-      },
-    })
-  }
-
-  const handleCopyId = (id: string) => {
-    navigator.clipboard.writeText(id)
-    toast.success("ID copied to clipboard")
-  }
-
-  const handleEnrollmentUpdated = (updatedEnrollment: completeStudentEnrollment) => {
-    // Update local state with the updated enrollment data
-    setEnrollmentData(updatedEnrollment)
-    toast.success("Enrollment updated successfully")
-
-    // Use window.location.reload() to ensure the latest data is displayed
-    window.location.reload()
-  }
-
-  const handlePaymentSuccess = () => {
-    // Refresh the page to get the latest data
-    window.location.reload()
-    toast.success("Payment processed successfully")
-  }
-
-  const getFeeStatus = (fee: monthlyFeeEntry) => {
-    const now = new Date()
-    const dueDate = new Date(fee.dueDate)
-
-    if (fee.balance === 0) {
-      return { status: "Paid", variant: "default" }
-    } else if (isAfter(dueDate, now)) {
-      return { status: "N/A", variant: "secondary", color: "text-blue-600" }
-    } else {
-      return { status: "Due", variant: "destructive" }
-    }
-  }
-
-  const showPaymentReceipt = (payment: any) => {
-    setSelectedPayment(payment)
-    setReceiptDialogOpen(true)
-  }
-
-  const handleUpdateExam = (exam: examEntry) => {
-    setSelectedExam(exam)
-    setUpdateExamDialogOpen(true)
-  }
-
-  const refreshEnrollmentData = async () => {
-    setIsLoadingExams(true)
-    try {
-      const result = await getEnrollmentDetails(studentId, enrollmentData.id)
-      if (result?.status === "SUCCESS" && result.data) {
-        setEnrollmentData(result.data)
-        organizeExamsByTerm(result.data.examDetails || [])
-      } else {
-        toast.error("Failed to refresh enrollment data")
-      }
-    } catch (error) {
-      console.error("Error refreshing enrollment data:", error)
-      toast.error("An error occurred while refreshing enrollment data")
-    } finally {
-      setIsLoadingExams(false)
-    }
-  }
-
-  const calculateObtainedTotal = (subject: examEntrySubject) => {
-    let total = 0
-
-    if (subject.theoryExam && subject.obtainedMarksTheory !== null) {
-      total += subject.obtainedMarksTheory
-    }
-
-    if (subject.practicalExam && subject.obtainedMarksPractical !== null) {
-      total += subject.obtainedMarksPractical
-    }
-
-    return total
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <Button variant="outline" onClick={() => router.push(`/dashboard/student/${studentId}`)}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Student
-        </Button>
-
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setEditDialogOpen(true)}>
-            <Pencil className="mr-2 h-4 w-4" />
-            Edit Enrollment
-          </Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive">
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete Enrollment
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Are you sure you want to delete this enrollment?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This action cannot be undone. This will permanently delete the enrollment and all associated data.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleDeleteEnrollment}
-                  disabled={isDeleting}
-                  className="bg-red-600 hover:bg-red-700"
-                >
-                  {isDeleting ? "Deleting..." : "Delete"}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
-      </div>
-
-      <div className="bg-card rounded-lg border p-6">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-3xl font-bold">
-                {enrollmentData.classRoom?.name || "Class"} - {enrollmentData.classSection?.name || "Section"}
-              </h1>
-              <Badge variant={enrollmentData.isActive ? "default" : "outline"}>
-                {enrollmentData.isActive ? "Active" : "Inactive"}
-              </Badge>
-              <Badge
-                variant="secondary"
-                className={
-                  enrollmentData.isComplete
-                    ? "bg-orange-100 text-orange-800 hover:bg-orange-100/80 dark:bg-orange-900 dark:text-orange-300"
-                    : ""
-                }
-              >
-                {enrollmentData.isComplete ? "Completed" : "In Progress"}
-              </Badge>
-            </div>
-            <div className="flex flex-col gap-1 mt-2">
-              <div className="flex items-center gap-2">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="text-sm text-muted-foreground">Enrollment ID: {enrollmentData.id}</span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Unique identifier for this enrollment</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleCopyId(enrollmentData.id)}>
-                  <Copy className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-              <div className="flex items-center gap-2">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="text-sm text-muted-foreground">Student ID: {enrollmentData.studentId}</span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Unique identifier for the student</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6"
-                  onClick={() => handleCopyId(enrollmentData.studentId)}
-                >
-                  <Copy className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-              <div className="flex items-center gap-2">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="text-sm text-muted-foreground">Class ID: {enrollmentData.classroomId}</span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Unique identifier for the class</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6"
-                  onClick={() => handleCopyId(enrollmentData.classroomId)}
-                >
-                  <Copy className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-              <div className="flex items-center gap-2">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="text-sm text-muted-foreground">
-                        Section ID: {enrollmentData.classroomSectionId}
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Unique identifier for the section</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6"
-                  onClick={() => handleCopyId(enrollmentData.classroomSectionId)}
-                >
-                  <Copy className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            </div>
-          </div>
-          <div className="flex flex-col gap-1 items-end">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">Monthly Fee:</span>
-                    <span className="font-bold">₹{enrollmentData.monthlyFee.toLocaleString()}</span>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Monthly fee amount for this enrollment</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">One-time Fee:</span>
-                    <span className="font-bold">₹{(enrollmentData.one_time_fee || 0).toLocaleString()}</span>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>One-time fee charged at enrollment</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-        </div>
-      </div>
-
-      {/* Redesigned Enrollment Information Cards - Three separate cards in a grid with non-boxed layout */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-        {/* Student Info Card - 3 columns */}
-        <Card className="md:col-span-3">
-          <CardHeader>
-            <CardTitle className="text-center">Student</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center gap-4">
-            <Avatar className="h-24 w-24 border-2 border-muted">
-              <AvatarImage src={profileImageUrl} alt={studentName} />
-              <AvatarFallback>{initials}</AvatarFallback>
-            </Avatar>
-            <span className="font-medium text-center text-lg">{studentName}</span>
-          </CardContent>
-        </Card>
-
-        {/* Class Info Card - 6 columns with non-boxed layout */}
-        <Card className="md:col-span-6">
-          <CardHeader>
-            <CardTitle className="text-center">Class Information</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1">
-                <div className="text-sm text-muted-foreground">Class</div>
-                <div className="font-medium text-lg">{enrollmentData.classRoom?.name || "Unknown"}</div>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <div className="text-sm text-muted-foreground">Section</div>
-                <div className="font-medium text-lg">{enrollmentData.classSection?.name || "Unknown"}</div>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <div className="text-sm text-muted-foreground flex items-center gap-1">
-                  <Calendar className="h-4 w-4" /> Session Start
-                </div>
-                <div className="font-medium">{format(new Date(enrollmentData.sessionStart), "MMMM do, yyyy")}</div>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <div className="text-sm text-muted-foreground flex items-center gap-1">
-                  <Calendar className="h-4 w-4" /> Session End
-                </div>
-                <div className="font-medium">{format(new Date(enrollmentData.sessionEnd), "MMMM do, yyyy")}</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Timestamps Card - 3 columns with non-boxed layout */}
-        <Card className="md:col-span-3">
-          <CardHeader>
-            <CardTitle className="text-center">Timestamps</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex flex-col gap-1">
-                <div className="text-sm text-muted-foreground flex items-center gap-1">
-                  <Clock className="h-4 w-4" /> Created At
-                </div>
-                <div className="font-medium">{format(new Date(enrollmentData.createdAt), "MMM d, yyyy")}</div>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <div className="text-sm text-muted-foreground flex items-center gap-1">
-                  <Clock className="h-4 w-4" /> Last Updated
-                </div>
-                <div className="font-medium">{format(new Date(enrollmentData.updatedAt), "MMM d, yyyy")}</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="subjects">Subjects</TabsTrigger>
-          <TabsTrigger value="fees">Fee Details</TabsTrigger>
-          <TabsTrigger value="exams">Exams</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="subjects" className="mt-4 space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Subjects</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {enrollmentData.subjects && enrollmentData.subjects.length > 0 ? (
-                <div className="space-y-4">
-                  {enrollmentData.subjects.map((subject, index) => (
-                    <div key={index} className="border rounded-md p-4">
-                      <div className="flex justify-between items-center mb-2">
-                        <div className="flex items-center gap-2">
-                          <BookOpen className="h-5 w-5 text-primary" />
-                          <h3 className="font-medium">{subject.name}</h3>
-                        </div>
-                        <Badge variant="outline">{subject.code}</Badge>
-                      </div>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        <Badge
-                          variant={subject.theoryExam ? "default" : "outline"}
-                          className={
-                            subject.theoryExam
-                              ? "bg-blue-100 text-blue-800 hover:bg-blue-100/80 dark:bg-blue-900 dark:text-blue-300"
-                              : ""
-                          }
-                        >
-                          Theory Exam
-                        </Badge>
-                        <Badge
-                          variant={subject.practicalExam ? "default" : "outline"}
-                          className={
-                            subject.practicalExam
-                              ? "bg-green-100 text-green-800 hover:bg-green-100/80 dark:bg-green-900 dark:text-green-300"
-                              : ""
-                          }
-                        >
-                          Practical Exam
-                        </Badge>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-muted-foreground">No subjects found for this enrollment</p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="fees" className="mt-4 space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle>Fee Summary</CardTitle>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div>
-                        <Button
-                          variant="outline"
-                          onClick={() => setPayFeesDialogOpen(true)}
-                          disabled={enrollmentData.isComplete || allFeesPaid}
-                        >
-                          <CreditCard className="mr-2 h-4 w-4" />
-                          Pay Fees
-                        </Button>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>
-                        {enrollmentData.isComplete
-                          ? "Enrollment is marked as complete, no more payments needed"
-                          : allFeesPaid
-                            ? "All fees have been paid"
-                            : "Process a fee payment for this enrollment"}
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="grid grid-cols-2 gap-2">
-                      <span className="text-muted-foreground">Total Amount</span>
-                      <span className="font-medium text-right">₹{feeSummary.totalAmount.toLocaleString()}</span>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Total fee amount for the entire enrollment period</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-
-              <Separator />
-
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="grid grid-cols-2 gap-2">
-                      <span className="text-muted-foreground">Paid Amount</span>
-                      <span className="font-medium text-right text-green-600">
-                        ₹{feeSummary.paidAmount.toLocaleString()}
-                      </span>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Total amount paid so far</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="grid grid-cols-2 gap-2">
-                      <span className="text-muted-foreground">Due Amount</span>
-                      <span className="font-medium text-right text-red-600">
-                        ₹{feeSummary.dueAmount.toLocaleString()}
-                      </span>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Amount currently due (past due dates with unpaid balance)</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="grid grid-cols-2 gap-2">
-                      <span className="text-muted-foreground">Future Payments</span>
-                      <span className="font-medium text-right text-blue-600">
-                        ₹{feeSummary.futureAmount.toLocaleString()}
-                      </span>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Amount due in future months</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-
-              <Separator />
-
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="grid grid-cols-2 gap-2">
-                      <span className="text-muted-foreground">Monthly Fee</span>
-                      <span className="font-medium text-right">₹{enrollmentData.monthlyFee.toLocaleString()}</span>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Monthly fee amount</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="grid grid-cols-2 gap-2">
-                      <span className="text-muted-foreground">One-time Fee</span>
-                      <span className="font-medium text-right">
-                        ₹{(enrollmentData.one_time_fee || 0).toLocaleString()}
-                      </span>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>One-time fee charged at enrollment</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Monthly Fee Schedule</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {sortedMonthlyFees.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="py-2 px-4 text-left border-r">Due Date</th>
-                        <th className="py-2 px-4 text-left border-r">Amount Due</th>
-                        <th className="py-2 px-4 text-left border-r">Amount Paid</th>
-                        <th className="py-2 px-4 text-left border-r">Balance</th>
-                        <th className="py-2 px-4 text-left">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {sortedMonthlyFees.map((fee, index) => {
-                        const feeStatus = getFeeStatus(fee)
-                        return (
-                          <tr key={index} className="border-b">
-                            <td className="py-2 px-4 border-r">{format(new Date(fee.dueDate), "MMM d, yyyy")}</td>
-                            <td className="py-2 px-4 border-r">₹{fee.feeDue.toLocaleString()}</td>
-                            <td className="py-2 px-4 border-r">₹{fee.amountPaid.toLocaleString()}</td>
-                            <td className="py-2 px-4 border-r">₹{fee.balance.toLocaleString()}</td>
-                            <td className="py-2 px-4">
-                              <Badge
-                                variant={feeStatus.variant as any}
-                                className={
-                                  feeStatus.status === "N/A"
-                                    ? "bg-blue-100 text-blue-800 hover:bg-blue-100/80 dark:bg-blue-900 dark:text-blue-300"
-                                    : ""
-                                }
-                              >
-                                {feeStatus.status}
-                              </Badge>
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <p className="text-muted-foreground">No monthly fee schedule found</p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Payment History</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {enrollmentData.feePayments && enrollmentData.feePayments.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="py-2 px-4 text-left border-r">Date</th>
-                        <th className="py-2 px-4 text-left border-r">Amount</th>
-                        <th className="py-2 px-4 text-left border-r">Original Balance</th>
-                        <th className="py-2 px-4 text-left border-r">Remaining Balance</th>
-                        <th className="py-2 px-4 text-left border-r">Receipt</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {enrollmentData.feePayments.map((payment, index) => (
-                        <tr key={index} className="border-b">
-                          <td className="py-2 px-4 border-r">{format(new Date(payment.paidOn), "MMM d, yyyy")}</td>
-                          <td className="py-2 px-4 border-r">₹{payment.paidAmount.toLocaleString()}</td>
-                          <td className="py-2 px-4 border-r">₹{payment.originalBalance.toLocaleString()}</td>
-                          <td className="py-2 px-4 border-r">₹{payment.remainingBalance.toLocaleString()}</td>
-                          <td className="py-2 px-4 border-r">
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => showPaymentReceipt(payment)}
-                                    className="flex items-center gap-1"
-                                  >
-                                    <Receipt className="h-4 w-4" />
-                                    View
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>View payment receipt</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <p className="text-muted-foreground">No payment history found</p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="exams" className="mt-4 space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle>Examination Results</CardTitle>
-                <Button
-                  variant="outline"
-                  onClick={() => setCreateExamDialogOpen(true)}
-                  disabled={!enrollmentData.isActive}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  New Exam Entry
-                </Button>
-              </div>
-              <CardDescription>Academic performance in theory and practical examinations</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {isLoadingExams ? (
-                <div className="flex justify-center py-8">
-                  <RefreshCw className="h-8 w-8 animate-spin text-primary" />
-                </div>
-              ) : examsByTerm && Object.keys(examsByTerm).length > 0 ? (
-                <div className="space-y-8">
-                  {Object.entries(examsByTerm).map(([term, exams]) => (
-                    <div key={term} className="space-y-4">
-                      <h3 className="text-xl font-semibold">{term}</h3>
-                      {exams.map((exam) => (
-                        <div key={exam.examEntryId} className="border rounded-lg p-4">
-                          <div className="flex justify-between items-center mb-4">
-                            <div>
-                              <h4 className="text-lg font-medium">{exam.examName}</h4>
-                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <Calendar className="h-4 w-4" />
-                                {format(new Date(exam.examDate), "MMMM d, yyyy")}
-                                <span className="px-2 py-0.5 rounded-full bg-muted text-xs">{exam.examType}</span>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {exam.studentPassed !== undefined && (
-                                <Badge
-                                  variant={exam.studentPassed ? "default" : "destructive"}
-                                  className={
-                                    exam.studentPassed
-                                      ? "bg-green-100 text-green-800 hover:bg-green-100/80 dark:bg-green-900 dark:text-green-300"
-                                      : ""
-                                  }
-                                >
-                                  {exam.studentPassed ? "Passed" : "Failed"}
-                                </Badge>
-                              )}
-                              <Button variant="outline" size="sm" onClick={() => handleUpdateExam(exam)}>
-                                Update
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
-                                onClick={() => setExamToDelete({ examId: exam.examEntryId, examName: exam.examName })}
-                              >
-                                <Trash2 className="h-4 w-4 mr-1" />
-                                Delete
-                              </Button>
-                            </div>
-                          </div>
-
-                          {exam.subjects && exam.subjects.length > 0 && (
-                            <div className="space-y-2">
-                              <h5 className="font-medium mb-2">Subjects</h5>
-                              {exam.subjects.map((subject: completeSubjectDetails, index) => (
-                                <div key={index} className="border rounded p-3">
-                                  <div className="flex justify-between items-center mb-2">
-                                    <div className="flex items-center gap-2">
-                                      <h6 className="font-medium">{subject.name}</h6>
-                                      <span className="text-xs text-muted-foreground">Code: {subject.code}</span>
-                                    </div>
-                                    <div className="flex gap-2">
-                                      {subject.theoryExam && (
-                                        <Badge
-                                          variant="outline"
-                                          className="bg-blue-100 text-blue-800 hover:bg-blue-100/80 dark:bg-blue-900 dark:text-blue-300"
-                                        >
-                                          Theory
-                                        </Badge>
-                                      )}
-                                      {subject.practicalExam && (
-                                        <Badge
-                                          variant="outline"
-                                          className="bg-green-100 text-green-800 hover:bg-green-100/80 dark:bg-green-900 dark:text-green-300"
-                                        >
-                                          Practical
-                                        </Badge>
-                                      )}
-                                    </div>
-                                  </div>
-
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                                    {subject.theoryExam && (
-                                      <div>
-                                        <span className="text-muted-foreground">Theory: </span>
-                                        <span className="font-medium">
-                                          {subject.obtainedMarksTheory !== null ? subject.obtainedMarksTheory : "-"}/
-                                          {subject.totalMarksTheory !== null ? subject.totalMarksTheory : "-"}
-                                        </span>
-                                      </div>
-                                    )}
-
-                                    {subject.practicalExam && (
-                                      <div>
-                                        <span className="text-muted-foreground">Practical: </span>
-                                        <span className="font-medium">
-                                          {subject.obtainedMarksPractical !== null
-                                            ? subject.obtainedMarksPractical
-                                            : "-"}
-                                          /{subject.totalMarksPractical !== null ? subject.totalMarksPractical : "-"}
-                                        </span>
-                                      </div>
-                                    )}
-
-                                    <div
-                                      className={cn(
-                                        "sm:col-span-2",
-                                        (!subject.theoryExam || !subject.practicalExam) && "sm:col-span-1",
-                                      )}
-                                    >
-                                      <span className="text-muted-foreground">Total: </span>
-                                      <span className="font-medium">
-                                        {calculateObtainedTotal(subject)}/{subject.totalMarks || 0}
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground mb-4">No exam records found for this enrollment</p>
-                  <Button onClick={() => setCreateExamDialogOpen(true)} disabled={!enrollmentData.isActive}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Create First Exam
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-
-      <EditEnrollmentDialog
-        enrollment={enrollmentData}
-        open={editDialogOpen}
-        onOpenChange={setEditDialogOpen}
-        onSuccess={handleEnrollmentUpdated}
-      />
-
-      <PayFeesDialog
-        enrollment={enrollmentData}
-        open={payFeesDialogOpen}
-        onOpenChange={setPayFeesDialogOpen}
-        onSuccess={handlePaymentSuccess}
-        studentId={studentId}
-      />
-
-      <PaymentReceiptDialog
-        open={receiptDialogOpen}
-        onOpenChange={setReceiptDialogOpen}
-        payment={selectedPayment}
-        studentName={studentName}
-        className={enrollmentData.classRoom?.name}
-        sectionName={enrollmentData.classSection?.name}
-      />
-
-      <CreateExamDialog
-        open={createExamDialogOpen}
-        onOpenChange={setCreateExamDialogOpen}
-        studentId={studentId}
-        enrollmentId={enrollmentData.id}
-        onSuccess={refreshEnrollmentData}
-      />
-
-      <UpdateExamDialog
-        open={updateExamDialogOpen}
-        onOpenChange={setUpdateExamDialogOpen}
-        studentId={studentId}
-        enrollmentId={enrollmentData.id}
-        exam={selectedExam}
-        onSuccess={refreshEnrollmentData}
-      />
-
-      {/* Delete Exam Confirmation Dialog */}
-      <AlertDialog open={!!examToDelete} onOpenChange={(open) => !open && setExamToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Exam</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete the exam "{examToDelete?.examName}"? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeletingExam}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteExam}
-              disabled={isDeletingExam}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              {isDeletingExam ? (
-                <>
-                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                "Delete"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
-  )
+ const [activeTab, setActiveTab] = useState("details")
+ const [isDeleting, setIsDeleting] = useState(false)
+ const [isTogglingStatus, setIsTogglingStatus] = useState(false)
+ const [editDialogOpen, setEditDialogOpen] = useState(false)
+ const [newEnrollmentDialogOpen, setNewEnrollmentDialogOpen] = useState(false)
+ const [studentData, setStudentData] = useState<any>(enrollment.student)
+ const [payments, setPayments] = useState<any[]>([])
+ const [isLoadingPayments, setIsLoadingPayments] = useState(false)
+ const [paymentsPage, setPaymentsPage] = useState(1)
+ const [paymentsLimit] = useState(10)
+ const [totalPayments, setTotalPayments] = useState(0)
+ const [totalPages, setTotalPages] = useState(1)
+ const [selectedPayment, setSelectedPayment] = useState<any>(null)
+ const [receiptDialogOpen, setReceiptDialogOpen] = useState(false)
+ const [isDeletingEnrollment, setIsDeletingEnrollment] = useState(false)
+ const [createExamDialogOpen, setCreateExamDialogOpen] = useState(false)
+ const [updateExamDialogOpen, setUpdateExamDialogOpen] = useState(false)
+ const [selectedExam, setSelectedExam] = useState<examEntry | null>(null)
+ const [isPayingFees, setIsPayingFees] = useState(false)
+ const [isGeneratingResult, setIsGeneratingResult] = useState(false)
+ const [showResultCard, setShowResultCard] = useState(false)
+ const [page, setPage] = useState(1)
+
+ const router = useRouter()
+
+ const fetchPayments = async () => {
+   setIsLoadingPayments(true)
+   try {
+     const result = await getStudentPaymentsInfo(studentId, paymentsLimit, paymentsPage)
+     if (result?.status === "SUCCESS" && result.data) {
+       setPayments(result.data.payments || [])
+       setTotalPayments(result.data.totalItems || 0)
+       setTotalPages(result.data.totalPages || 1)
+     } else {
+       toast.error(result?.message || "Failed to fetch payment information")
+     }
+   } catch (error) {
+     console.error("Error fetching payments:", error)
+     toast.error("An error occurred while fetching payment information")
+   } finally {
+     setIsLoadingPayments(false)
+   }
+ }
+
+ useEffect(() => {
+   if (activeTab === "payments") {
+     fetchPayments()
+   }
+ }, [activeTab, paymentsPage])
+
+ const handleDeleteEnrollment = async () => {
+   setIsDeletingEnrollment(true)
+
+   toast.promise(deleteStudent(studentId, false), {
+     loading: "Deleting enrollment...",
+     success: (result) => {
+       if (result?.status === "SUCCESS") {
+         router.push(`/dashboard/student/${studentId}`)
+         return result.message || "Enrollment deleted successfully"
+       } else {
+         throw new Error(result?.message || "Failed to delete enrollment")
+       }
+     },
+     error: (error) => {
+       console.error("Error deleting enrollment:", error)
+       return "An error occurred while deleting enrollment"
+     },
+     finally: () => {
+       setIsDeletingEnrollment(false)
+     },
+   })
+ }
+
+ const handleCopyId = (id: string) => {
+   navigator.clipboard.writeText(id)
+   toast.success("ID copied to clipboard")
+ }
+
+ const handleStudentUpdated = (updatedStudent: any) => {
+   setStudentData(updatedStudent)
+   toast.success("Student updated successfully")
+ }
+
+ const handleEnrollmentCreated = () => {
+   router.refresh()
+   toast.success("Enrollment created successfully")
+ }
+
+ const handleCreateExam = () => {
+   setCreateExamDialogOpen(true)
+ }
+
+ const handleUpdateExam = (exam: examEntry) => {
+   setSelectedExam(exam)
+   setUpdateExamDialogOpen(true)
+ }
+
+ const handleDeleteExam = async (examEntryId: string) => {
+   toast.promise(deleteExamEntry(studentId, enrollment.id, examEntryId), {
+     loading: "Deleting exam entry...",
+     success: (result) => {
+       if (result?.status === "SUCCESS") {
+         router.refresh()
+         return "Exam entry deleted successfully"
+       } else {
+         throw new Error(result?.message || "Failed to delete exam entry")
+       }
+     },
+     error: (error) => {
+       console.error("Error deleting exam entry:", error)
+       return "An error occurred while deleting exam entry"
+     },
+   })
+ }
+
+ const handlePayFees = () => {
+   setIsPayingFees(true)
+ }
+
+ const handleGenerateResult = () => {
+   setIsGeneratingResult(true)
+   setShowResultCard(true)
+ }
+
+ return (
+   <div className="space-y-6">
+     <div className="flex justify-between items-center">
+       <Button variant="outline" onClick={() => router.push(`/dashboard/student/${studentId}`)}>
+         <ArrowLeft className="mr-2 h-4 w-4" />
+         Back to Student
+       </Button>
+
+       <div className="flex flex-wrap gap-2">
+         <Button variant="outline" onClick={() => setEditDialogOpen(true)}>
+           <Pencil className="mr-2 h-4 w-4" />
+           Edit Enrollment
+         </Button>
+         <AlertDialog>
+           <AlertDialogTrigger asChild>
+             <Button variant="destructive">
+               <Trash2 className="mr-2 h-4 w-4" />
+               Delete Enrollment
+             </Button>
+           </AlertDialogTrigger>
+           <AlertDialogContent>
+             <AlertDialogHeader>
+               <AlertDialogTitle>Are you sure you want to delete this enrollment?</AlertDialogTitle>
+               <AlertDialogDescription>
+                 This action cannot be undone. This will permanently delete the enrollment and all associated data.
+               </AlertDialogDescription>
+           </AlertDialogHeader>
+           <AlertDialogFooter>
+             <AlertDialogCancel>Cancel</AlertDialogCancel>
+             <AlertDialogAction onClick={handleDeleteEnrollment} className="bg-red-600 hover:bg-red-700">
+               {isDeletingEnrollment ? "Deleting..." : "Delete"}
+             </AlertDialogAction>
+           </AlertDialogFooter>
+         </AlertDialogContent>
+       </AlertDialog>
+     </div>
+   </div>
+
+   <div className="flex flex-col md:flex-row gap-6 items-start">
+     <div className="relative">
+       <Avatar className="h-24 w-24 md:h-32 md:w-32 border-4 border-background">
+         <AvatarImage src={BACKEND_SERVER_URL + `/v1/student/${studentId || "/placeholder.svg"}/profileImg`} alt={studentData?.name} />
+         <AvatarFallback className="text-2xl md:text-3xl">{studentData?.name}</AvatarFallback>
+       </Avatar>
+     </div>
+
+     <div className="flex-1 space-y-2">
+       <div className="flex flex-col md:flex-row md:items-center gap-2 justify-between">
+         <div>
+           <h1 className="text-2xl md:text-3xl font-bold">{studentData?.name}</h1>
+           <div className="flex items-center gap-2 mt-1">
+             <Badge variant={enrollment.isActive ? "default" : "outline"}>
+               {enrollment.isActive ? "Active" : "Inactive"}
+             </Badge>
+             <Badge variant={enrollment.isComplete ? "default" : "secondary"} className="bg-orange-500">
+               {enrollment.isComplete ? "Completed" : "In Progress"}
+             </Badge>
+           </div>
+           <div className="flex items-center gap-2 mt-1">
+             <span className="text-sm text-muted-foreground">ID: {enrollment.id}</span>
+             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleCopyId(enrollment.id)}>
+               <Copy className="h-3.5 w-3.5" />
+             </Button>
+           </div>
+         </div>
+       </div>
+     </div>
+   </div>
+
+   <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+     <TabsList className="grid w-full grid-cols-3">
+       <TabsTrigger value="details">Enrollment Details</TabsTrigger>
+       <TabsTrigger value="exams">Exams</TabsTrigger>
+       <TabsTrigger value="payments">Payments</TabsTrigger>
+     </TabsList>
+
+     <TabsContent value="details" className="mt-4 space-y-4">
+       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+         <Card>
+           <CardHeader>
+             <CardTitle>Enrollment Information</CardTitle>
+           </CardHeader>
+           <CardContent className="space-y-4">
+             <div className="grid grid-cols-2 gap-2">
+               <span className="text-muted-foreground">Class</span>
+               <span className="font-medium text-right">{enrollment.classRoom?.name}</span>
+             </div>
+             <div className="grid grid-cols-2 gap-2">
+               <span className="text-muted-foreground">Section</span>
+               <span className="font-medium text-right">{enrollment.classSection?.name}</span>
+             </div>
+             <div className="grid grid-cols-2 gap-2">
+               <span className="text-muted-foreground">Session Start</span>
+               <span className="font-medium text-right">
+                 {format(new Date(enrollment.sessionStart), "MMMM do, yyyy")}
+               </span>
+             </div>
+             <div className="grid grid-cols-2 gap-2">
+               <span className="text-muted-foreground">Session End</span>
+               <span className="font-medium text-right">
+                 {format(new Date(enrollment.sessionEnd), "MMMM do, yyyy")}
+               </span>
+             </div>
+             <div className="grid grid-cols-2 gap-2">
+               <span className="text-muted-foreground">Monthly Fee</span>
+               <span className="font-medium text-right">₹{enrollment.monthlyFee.toLocaleString()}</span>
+             </div>
+             <div className="grid grid-cols-2 gap-2">
+               <span className="text-muted-foreground">One-time Fee</span>
+               <span className="font-medium text-right">₹{enrollment.one_time_fee?.toLocaleString()}</span>
+             </div>
+           </CardContent>
+         </Card>
+       </div>
+     </TabsContent>
+
+     <TabsContent value="exams" className="mt-4 space-y-4">
+       <Card>
+         <CardHeader>
+           <div className="flex justify-between items-center">
+             <CardTitle>Exam Details</CardTitle>
+             <Button variant="outline" size="sm" onClick={handleCreateExam}>
+               <UserPlus className="mr-2 h-4 w-4" />
+               New Exam
+             </Button>
+           </div>
+         </CardHeader>
+         <CardContent>
+           {enrollment.examDetails && enrollment.examDetails.length > 0 ? (
+             <div className="overflow-x-auto">
+               <table className="w-full border-collapse">
+                 <thead>
+                   <tr className="border-b">
+                     <TableHead>Exam Name</TableHead>
+                     <TableHead>Exam Type</TableHead>
+                     <TableHead>Exam Date</TableHead>
+                     <TableHead>Note</TableHead>
+                     <TableHead>Actions</TableHead>
+                   </tr>
+                 </thead>
+                 <TableBody>
+                   {enrollment.examDetails.map((exam) => (
+                     <TableRow key={exam.examEntryId}>
+                       <TableCell>{exam.examName}</TableCell>
+                       <TableCell>{exam.examType}</TableCell>
+                       <TableCell>{format(new Date(exam.examDate), "MMMM do, yyyy")}</TableCell>
+                       <TableCell>{exam.note}</TableCell>
+                       <TableCell>
+                         <DropdownMenu>
+                           <DropdownMenuTrigger asChild>
+                             <Button variant="ghost" size="icon" className="h-8 w-8">
+                               <MoreHorizontal className="h-4 w-4" />
+                             </Button>
+                           </DropdownMenuTrigger>
+                           <DropdownMenuContent align="end">
+                             <DropdownMenuItem onClick={() => handleUpdateExam(exam)}>
+                               <Pencil className="mr-2 h-4 w-4" />
+                               Edit
+                             </DropdownMenuItem>
+                             <DropdownMenuItem onClick={() => handleDeleteExam(exam.examEntryId)} className="text-red-600">
+                               <Trash2 className="mr-2 h-4 w-4" />
+                               Delete
+                             </DropdownMenuItem>
+                           </DropdownMenuContent>
+                         </DropdownMenu>
+                       </TableCell>
+                     </TableRow>
+                   ))}
+                 </TableBody>
+               </table>
+             </div>
+           ) : (
+             <div className="text-center py-6">
+               <p className="text-muted-foreground">No exam details found for this enrollment</p>
+             </div>
+           )}
+         </CardContent>
+       </Card>
+       <Button onClick={handleGenerateResult} disabled={isGeneratingResult}>
+         {isGeneratingResult ? "Generating Result..." : "Generate Result"}
+       </Button>
+       {showResultCard && (
+         <ResultCard
+           examDetails={enrollment.examDetails}
+           subjects={enrollment.subjects}
+           studentName={studentData.name}
+           className={enrollment.classRoom?.name}
+           sectionName={enrollment.classSection?.name}
+         />
+       )}
+     </TabsContent>
+
+     <TabsContent value="payments" className="mt-4 space-y-4">
+       <Card>
+         <CardHeader>
+           <div className="flex justify-between items-center">
+             <CardTitle>Payment History</CardTitle>
+             <Button variant="outline" size="sm" onClick={fetchPayments} disabled={isLoadingPayments}>
+               <RefreshCw className={`mr-2 h-4 w-4 ${isLoadingPayments ? "animate-spin" : ""}`} />
+               Refresh
+             </Button>
+           </div>
+         </CardHeader>
+         <CardContent>
+           {isLoadingPayments ? (
+             <div className="flex justify-center py-8">
+               <Loader2 className="h-8 w-8 animate-spin text-primary" />
+             </div>
+           ) : payments.length > 0 ? (
+             <>
+               <div className="overflow-x-auto">
+                 <table className="w-full border-collapse">
+                   <thead>
+                     <tr className="border-b">
+                       <TableHead>Date</TableHead>
+                       <TableHead>Amount</TableHead>
+                       <TableHead>Original Balance</TableHead>
+                       <TableHead>Remaining Balance</TableHead>
+                       <TableHead className="w-[150px]">Actions</TableHead>
+                     </tr>
+                   </thead>
+                   <tbody>
+                     {payments.map((payment, index) => (
+                       <TableRow key={index} className="border-b">
+                         <TableCell>{format(new Date(payment.paidOn), "MMM d, yyyy")}</TableCell>
+                         <TableCell>₹{payment.paidAmount.toLocaleString()}</TableCell>
+                         <TableCell>₹{payment.originalBalance.toLocaleString()}</TableCell>
+                         <TableCell>₹{payment.remainingBalance.toLocaleString()}</TableCell>
+                         <TableCell>
+                           <Button
+                             variant="ghost"
+                             size="sm"
+                             onClick={() => {
+                               setSelectedPayment(payment)
+                               setReceiptDialogOpen(true)
+                             }}
+                             className="flex items-center gap-1"
+                           >
+                             <Receipt className="h-4 w-4" />
+                             Receipt
+                           </Button>
+                         </TableCell>
+                       </TableRow>
+                     ))}
+                   </tbody>
+                 </table>
+               </div>
+
+               {totalPayments > paymentsLimit && (
+                 <div className="flex items-center justify-between mt-4">
+                   <p className="text-sm text-muted-foreground">
+                     Showing {payments.length} of {totalPayments} payments
+                   </p>
+                   <div className="flex items-center gap-2">
+                     <Button
+                       variant="outline"
+                       size="sm"
+                       onClick={() => setPage((p) => Math.max(1, p - 1))}
+                       disabled={page === 1 || isLoadingPayments}
+                     >
+                       Previous
+                     </Button>
+                     <span className="text-sm">
+                       Page {page} of {totalPages}
+                     </span>
+                     <Button
+                       variant="outline"
+                       size="sm"
+                       onClick={() => setPage((p) => p + 1)}
+                       disabled={page >= totalPages || isLoadingPayments}
+                     >
+                       Next
+                     </Button>
+                   </div>
+                 </div>
+               )}
+             </>
+           ) : (
+             <p className="text-center py-6 text-muted-foreground">No payment records found for this student</p>
+           )}
+         </CardContent>
+       </Card>
+     </TabsContent>
+
+     <CreateExamDialog
+       open={createExamDialogOpen}
+       onOpenChange={setCreateExamDialogOpen}
+       studentId={studentId}
+       enrollmentId={enrollment.id}
+       onSuccess={() => router.refresh()}
+     />
+
+     <UpdateExamDialog
+       open={updateExamDialogOpen}
+       onOpenChange={setUpdateExamDialogOpen}
+       studentId={studentId}
+       enrollmentId={enrollment.id}
+       exam={selectedExam}
+       onSuccess={() => router.refresh()}
+     />
+
+     <PayFeesDialog
+       enrollment={enrollment}
+       open={isPayingFees}
+       onOpenChange={setIsPayingFees}
+       studentId={studentId}
+       onSuccess={() => router.refresh()}
+     />
+   </Tabs>
+   </div >
+ )
 }

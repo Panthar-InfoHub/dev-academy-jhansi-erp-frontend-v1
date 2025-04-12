@@ -24,7 +24,7 @@ interface NewEnrollmentDialogProps {
   studentId: string
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSuccess?: () => void
+  onSuccess?: (enrollmentId: string) => void
 }
 
 export function NewEnrollmentDialog({ studentId, open, onOpenChange, onSuccess }: NewEnrollmentDialogProps) {
@@ -228,7 +228,7 @@ export function NewEnrollmentDialog({ studentId, open, onOpenChange, onSuccess }
         success: (result) => {
           if (result?.status === "SUCCESS") {
             onOpenChange(false)
-            if (onSuccess) onSuccess()
+            if (onSuccess) onSuccess(result.data.id)
             return result.message || "Enrollment created successfully"
           } else {
             throw new Error(result?.message || "Failed to create enrollment")

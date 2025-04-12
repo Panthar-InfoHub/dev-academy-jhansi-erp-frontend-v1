@@ -418,8 +418,8 @@ export function StudentsTable({ initialClassrooms }: StudentsTableProps) {
       <AddStudentDialog
         open={addStudentDialogOpen}
         onOpenChange={setAddStudentDialogOpen}
-        onSuccess={() => {
-          fetchStudents()
+        onSuccess={(newStudentId) => {
+          router.push(`/dashboard/student/${newStudentId}`)
         }}
       />
     </Card>

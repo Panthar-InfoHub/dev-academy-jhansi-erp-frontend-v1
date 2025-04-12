@@ -586,7 +586,9 @@ export function StudentDetail({ student }: StudentDetailProps) {
         studentId={student.id}
         open={newEnrollmentDialogOpen}
         onOpenChange={setNewEnrollmentDialogOpen}
-        onSuccess={handleEnrollmentCreated}
+        onSuccess={(newEnrollmentId) => {
+          router.push(`/dashboard/student/${student.id}/enrollment/${newEnrollmentId}`)
+        }}
       />
 
       <PaymentReceiptDialog

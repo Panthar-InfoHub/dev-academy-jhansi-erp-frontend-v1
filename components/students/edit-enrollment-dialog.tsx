@@ -39,7 +39,7 @@ export function EditEnrollmentDialog({ enrollment, open, onOpenChange, onSuccess
     one_time_fee: enrollment.one_time_fee || 0,
   })
 
-  // Reset form when dialog opens
+  // Reset form when the dialog opens
   useEffect(() => {
     if (open) {
       setFormData({
