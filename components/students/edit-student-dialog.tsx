@@ -42,7 +42,7 @@ export function EditStudentDialog({ student, open, onOpenChange, onSuccess }: Ed
     fatherName: student.fatherName || "",
     fatherPhone: student.fatherPhone || "",
     motherName: student.motherName || "",
-    motherPhone: student.motherPhone || "",
+    motherPhone: "",
     isActive: student.isActive,
   })
 
@@ -54,14 +54,13 @@ export function EditStudentDialog({ student, open, onOpenChange, onSuccess }: Ed
     }))
 
     // Clear error for this field
-     if (formErrors[name]) {
+    if (formErrors[name]) {
       setFormErrors((prev) => ({
         ...prev,
         [name]: type === "checkbox" ? String(checked) : value,
       }))
     }
   }
-
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

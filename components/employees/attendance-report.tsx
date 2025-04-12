@@ -86,10 +86,7 @@ export function AttendanceReport() {
             <div className="flex items-center gap-4">
               <div className="space-y-2">
                 <p className="text-sm font-medium">Select Date</p>
-                <EnhancedCalendar
-                  selected={selectedDate}
-                  onSelect={(date) => date && setSelectedDate(date)}
-                />
+                <EnhancedCalendar selected={selectedDate} onSelect={(date) => date && setSelectedDate(date)} />
               </div>
             </div>
             <div className="flex gap-2 self-start">

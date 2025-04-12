@@ -412,7 +412,7 @@ export function EmployeeDetail({ employee }: EmployeeDetailProps) {
                 {employee.isFired ? (
                   <Badge variant="destructive">Fired</Badge>
                 ) : employee.isActive ? (
-                  <Badge variant="default">Active</Badge>
+                  <Badge>Active</Badge>
                 ) : (
                   <Badge variant="outline">Inactive</Badge>
                 )}
