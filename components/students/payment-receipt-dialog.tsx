@@ -1,11 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useCallback } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { format } from "date-fns"
-import { Printer } from "lucide-react"
+import { Download } from "lucide-react"
 import { SCHOOL_NAME } from "@/env"
+import { toPng } from "html-to-image"
+import { toast } from "sonner"
 
 interface PaymentReceiptDialogProps {
   open: boolean
@@ -24,101 +26,45 @@ export function PaymentReceiptDialog({
   className,
   sectionName,
 }: PaymentReceiptDialogProps) {
-  const [isPrinting, setIsPrinting] = useState(false)
+  const [isDownloading, setIsDownloading] = useState(false)
+  const receiptRef = useRef<HTMLDivElement>(null)
 
-  const handlePrint = () => {
-    setIsPrinting(true)
-    const receiptContent = document.getElementById("receipt-content")
-    const printWindow = window.open("", "_blank")
-
-    if (printWindow && receiptContent) {
-      printWindow.document.write(`
-        <html>
-          <head>
-            <title>Payment Receipt</title>
-            <style>
-              body {
-                font-family: Arial, sans-serif;
-                padding: 20px;
-                max-width: 800px;
-                margin: 0 auto;
-                color: #000;
-                background-color: #fff;
-              }
-              .receipt {
-                border: 1px solid #ddd;
-                padding: 20px;
-                background-color: white;
-                color: black;
-              }
-              .receipt-header {
-                text-align: center;
-                margin-bottom: 20px;
-                border-bottom: 2px solid #ddd;
-                padding-bottom: 10px;
-              }
-              .receipt-title {
-                font-size: 24px;
-                font-weight: bold;
-                margin-bottom: 5px;
-                color: black;
-              }
-              .receipt-subtitle {
-                font-size: 16px;
-                color: #666;
-              }
-              .receipt-info {
-                margin-bottom: 20px;
-                color: black;
-              }
-              .receipt-row {
-                display: flex;
-                justify-content: space-between;
-                margin-bottom: 8px;
-              }
-              .receipt-label {
-                font-weight: bold;
-                color: #555;
-              }
-              .receipt-value {
-                text-align: right;
-                color: black;
-              }
-              .receipt-amount {
-                font-size: 18px;
-                font-weight: bold;
-                margin-top: 10px;
-                text-align: right;
-                color: black;
-              }
-              .receipt-footer {
-                margin-top: 30px;
-                text-align: center;
-                font-size: 14px;
-                color: #777;
-              }
-              .receipt-divider {
-                border-top: 1px dashed #ddd;
-                margin: 15px 0;
-              }
-            </style>
-          </head>
-          <body>
-            <div class="receipt">
-              ${receiptContent.innerHTML}
-            </div>
-          </body>
-        </html>
-      `)
-      printWindow.document.close()
-      printWindow.focus()
-      printWindow.print()
-      printWindow.onafterprint = () => {
-        printWindow.close()
-        setIsPrinting(false)
-      }
+  const handleDownload = useCallback(() => {
+    console.log("Download button clicked")
+    if (receiptRef.current === null) {
+      console.log("Receipt ref is null")
+      toast.error("Could not generate receipt image")
+      return
     }
-  }
+
+    setIsDownloading(true)
+    toast.info("Generating receipt image...")
+
+    // Create a short receipt ID for the filename
+    const shortId = payment?.id ? payment.id.substring(0, 8) : "receipt"
+    const filename = `payment-receipt-${shortId}.png`
+
+    toPng(receiptRef.current, {
+      cacheBust: true,
+      pixelRatio: 2, // Higher quality
+      backgroundColor: "white", // Ensure white background
+    })
+      .then((dataUrl) => {
+        console.log("Image generated successfully")
+        const link = document.createElement("a")
+        link.download = filename
+        link.href = dataUrl
+        link.click()
+        toast.success("Receipt downloaded successfully")
+      })
+      .catch((err) => {
+        console.error("Error generating image:", err)
+        toast.error("Failed to download receipt")
+      })
+      .finally(() => {
+        setIsDownloading(false)
+      })
+  }, [payment])
 
   if (!payment) return null
 
@@ -129,7 +75,7 @@ export function PaymentReceiptDialog({
           <DialogTitle className="text-center text-black">Payment Receipt</DialogTitle>
         </DialogHeader>
 
-        <div id="receipt-content" className="bg-white p-6 text-black">
+        <div id="receipt-content" ref={receiptRef} className="bg-white p-6 text-black">
           <div className="text-center mb-6 border-b pb-4">
             <h2 className="text-2xl font-bold text-black">{SCHOOL_NAME}</h2>
             <h3 className="text-xl font-semibold text-black">Payment Receipt</h3>
@@ -178,9 +124,14 @@ export function PaymentReceiptDialog({
         </div>
 
         <div className="flex justify-end mt-4">
-          <Button variant="outline" onClick={handlePrint} disabled={isPrinting} className="flex items-center gap-2">
-            <Printer className="h-4 w-4" />
-            {isPrinting ? "Printing..." : "Print Receipt"}
+          <Button
+            variant="outline"
+            onClick={handleDownload}
+            disabled={isDownloading}
+            className="flex items-center gap-2 text-black"
+          >
+            <Download className="h-4 w-4" />
+            {isDownloading ? "Downloading..." : "Download Receipt"}
           </Button>
         </div>
       </DialogContent>
