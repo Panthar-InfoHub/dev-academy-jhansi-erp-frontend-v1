@@ -18,7 +18,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { CalendarIcon } from "lucide-react"
 import { format } from "date-fns"
-import { cn } from "@/lib/utils"
+import { cn, normalizeDate } from "@/lib/utils"
 import { toast } from "sonner"
 import { createExamEntry } from "@/lib/actions/student"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -31,7 +31,7 @@ interface CreateExamDialogProps {
   onSuccess?: () => void
 }
 
-const TERMS = ["Term I", "Term II", "Term III", "Term IV"]
+export const TERMS = ["Term I", "Term II", "Term III", "Term IV"]
 
 export function CreateExamDialog({ open, onOpenChange, studentId, enrollmentId, onSuccess }: CreateExamDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -42,7 +42,8 @@ export function CreateExamDialog({ open, onOpenChange, studentId, enrollmentId, 
     examName: "",
     examType: "",
     examDate: new Date(),
-    note: TERMS[0], // Default to Term I
+    term: TERMS[0], // Default to Term I
+    note: "",
   })
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -65,7 +66,7 @@ export function CreateExamDialog({ open, onOpenChange, studentId, enrollmentId, 
   const handleTermChange = (term: string) => {
     setFormData((prev) => ({
       ...prev,
-      note: term,
+      term: term,
     }))
   }
 
@@ -103,7 +104,8 @@ export function CreateExamDialog({ open, onOpenChange, studentId, enrollmentId, 
               examName: "",
               examType: "",
               examDate: new Date(),
-              note: TERMS[0],
+              note: "",
+              term: TERMS[0],
             })
 
             if (onSuccess) {
@@ -140,7 +142,7 @@ export function CreateExamDialog({ open, onOpenChange, studentId, enrollmentId, 
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="term">Select Term</Label>
-              <Select value={formData.note} onValueChange={handleTermChange}>
+              <Select value={formData.term} onValueChange={handleTermChange}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select Term" />
                 </SelectTrigger>
@@ -183,6 +185,21 @@ export function CreateExamDialog({ open, onOpenChange, studentId, enrollmentId, 
               />
               {formErrors.examType && <p className="text-sm text-red-500">{formErrors.examType}</p>}
             </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="note">
+                Note
+              </Label>
+              <Input
+                id="note"
+                name="note"
+                value={formData.note}
+                onChange={handleInputChange}
+                placeholder="Extra info about the exam (optional)"
+                required={false}
+              />
+              {formErrors.note && <p className="text-sm text-red-500">{formErrors.note}</p>}
+            </div>
 
             <div className="space-y-2">
               <Label htmlFor="examDate">
@@ -205,7 +222,9 @@ export function CreateExamDialog({ open, onOpenChange, studentId, enrollmentId, 
                   <Calendar
                     mode="single"
                     selected={formData.examDate}
-                    onSelect={(date) => date && setFormData((prev) => ({ ...prev, examDate: normalizeDate(date) }))}
+                    onSelect={
+                    (date) =>
+                      setFormData((prev) => ({ ...prev, examDate: normalizeDate(date) }))}
                     initialFocus
                   />
                 </PopoverContent>
@@ -226,6 +245,3 @@ export function CreateExamDialog({ open, onOpenChange, studentId, enrollmentId, 
   )
 }
 
-function normalizeDate(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate())
-}

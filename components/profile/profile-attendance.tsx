@@ -108,8 +108,8 @@ export function ProfileAttendance({ employeeId }: ProfileAttendanceProps) {
           <CardDescription>View your attendance records for the selected date range</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col md:flex-row gap-4 mb-4">
-            <div className="flex-1">
+          <div className="flex flex-col md:flex-row items-center justify-center-safe gap-4 mb-4">
+            <div className="">
               <h3 className="text-sm font-medium mb-2">Start Date</h3>
               <Calendar
                 mode="single"
@@ -119,7 +119,7 @@ export function ProfileAttendance({ employeeId }: ProfileAttendanceProps) {
                 className="rounded-md border"
               />
             </div>
-            <div className="flex-1">
+            <div className="">
               <h3 className="text-sm font-medium mb-2">End Date</h3>
               <Calendar
                 mode="single"
@@ -240,18 +240,18 @@ export function ProfileAttendance({ employeeId }: ProfileAttendanceProps) {
                         ) : attendance.isLeave ? (
                           <Badge
                             variant="outline"
-                            className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100/80 dark:bg-yellow-900 dark:text-yellow-200"
+                            className="bg-yellow-300 text-yellow-800 hover:bg-yellow-500/80 dark:bg-yellow-500/40 dark:text-yellow-200"
                           >
                             Leave
                           </Badge>
                         ) : attendance.isPresent ? (
-                          <Badge variant="default">Present</Badge>
+                          <Badge variant="default" className={"bg-green-500 dark:text-black"}>Present</Badge>
                         ) : (
-                          <Badge variant="destructive">Absent</Badge>
+                          <Badge variant="default" className={"bg-red-500 text-white"}>Absent</Badge>
                         )}
                       </td>
                       <td className="py-2 px-4">
-                        {attendance.clockInTime ? format(new Date(attendance.clockInTime), "h:mm a") : "N/A"}
+                        {attendance.clockInTime ? attendance.clockInTime : "N/A"}
                       </td>
                     </tr>
                   ))}

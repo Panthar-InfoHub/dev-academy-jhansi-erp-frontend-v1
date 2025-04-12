@@ -1,6 +1,6 @@
-                                                                             "use client"
+"use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -114,7 +114,7 @@ export function StudentsTable({ initialClassrooms }: StudentsTableProps) {
     try {
       const { startPeriod, endPeriod } = getSessionDates(selectedSession)
 
-      if (selectedSectionId) {
+      if (selectedSectionId && selectedSectionId !== "all") {
         // Fetch students for specific section
         const result = await getClassroomSectionStudentsInfo(selectedClassId, selectedSectionId, {
           startPeriod,

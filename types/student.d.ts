@@ -111,6 +111,7 @@ export interface examEntry {
 	examType: string,
 	subjects: [],
 	examDate: Date,
+	term: string,
 	studentPassed: boolean,
 	studentEnrollment: completeStudentEnrollment | undefined,
 	student: completeStudentDetails | undefined,
@@ -156,7 +157,8 @@ export interface createExamEntryReqBody {
 	examName: string,
 	examType: string,
 	examDate: Date,
-	note: string | undefined
+	note: string | undefined,
+	term: string,
 }
 
 export interface updateExamEntryReqBody {
@@ -165,7 +167,8 @@ export interface updateExamEntryReqBody {
 	examDate: Date | undefined,
 	note: string | undefined
 	subjects: examEntrySubject[] | undefined,
-	studentPassed: boolean | undefined
+	studentPassed: boolean | undefined,
+	term: string,
 }
 
 export interface examEntrySubject extends subject {

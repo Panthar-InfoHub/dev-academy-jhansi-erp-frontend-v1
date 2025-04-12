@@ -667,7 +667,6 @@ export function EmployeeDetail({ employee }: EmployeeDetailProps) {
                           onChange={handleSalaryChange}
                           className="col-span-3"
                           min="0"
-                          step="1000"
                           required
                         />
                       </div>

@@ -1,6 +1,6 @@
 "use client"
 
-import type React from "react"
+import React, { useEffect } from "react"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
@@ -106,6 +106,10 @@ export function StudentsSearchTable() {
     setPage(newPage)
     handleSearch()
   }
+  
+  useEffect(() => {
+    void handleSearch()
+  }, [])
 
   return (
     <Card>

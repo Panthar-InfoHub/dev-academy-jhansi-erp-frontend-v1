@@ -425,7 +425,6 @@ export function AddEmployeeDialog({ open, onOpenChange, onSuccess }: AddEmployee
                       value={newEmployee.salary}
                       onChange={handleInputChange}
                       min="0"
-                      step="1000"
                     />
                     {formErrors.salary && <p className="text-sm text-red-500">{formErrors.salary}</p>}
                   </div>

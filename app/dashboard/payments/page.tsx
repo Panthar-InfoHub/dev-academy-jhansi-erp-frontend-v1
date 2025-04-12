@@ -199,12 +199,12 @@ export default function PaymentsPage() {
           <div className="flex flex-col md:flex-row gap-4 mb-4">
             <div className="flex items-center gap-2">
               <Label htmlFor="startDate">Start Date</Label>
-              <EnhancedCalendar selected={startDate} onSelect={setStartDate} className="w-[180px]" />
+              <EnhancedCalendar selected={startDate} onSelect={setStartDate} className="w-auto" />
             </div>
 
             <div className="flex items-center gap-2">
               <Label htmlFor="endDate">End Date</Label>
-              <EnhancedCalendar selected={endDate} onSelect={setEndDate} className="w-[180px]" />
+              <EnhancedCalendar selected={endDate} onSelect={setEndDate} className="w-auto" />
             </div>
 
             <div className="flex items-center gap-2">

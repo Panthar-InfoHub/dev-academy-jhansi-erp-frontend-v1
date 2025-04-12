@@ -27,6 +27,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import type { examEntry, examEntrySubject } from "@/types/student"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TERMS } from "@/components/students/create-exam-dialog";
 
 interface UpdateExamDialogProps {
   open: boolean
@@ -57,6 +59,7 @@ export function UpdateExamDialog({
     note: "",
     studentPassed: false,
     subjects: [] as examEntrySubject[],
+    term: ""
   })
 
   // Reset form when exam changes
@@ -69,6 +72,7 @@ export function UpdateExamDialog({
         note: exam.note || "",
         studentPassed: exam.studentPassed || false,
         subjects: exam.subjects || [],
+        term: exam.term || ""
       })
     }
   }, [exam])
@@ -130,7 +134,10 @@ export function UpdateExamDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!exam) return
+    if (!exam) {
+      console.error("Exam not found")
+      return
+    }
 
     setIsSubmitting(true)
 
@@ -186,7 +193,6 @@ export function UpdateExamDialog({
         success: (result) => {
           if (result?.status === "SUCCESS") {
             onOpenChange(false)
-
             if (onSuccess) {
               onSuccess()
             }
@@ -209,7 +215,14 @@ export function UpdateExamDialog({
       setIsSubmitting(false)
     }
   }
-
+  
+  const handleTermChange = (term: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      term: term,
+    }))
+  }
+  
   if (!exam) return null
 
   return (
@@ -228,6 +241,25 @@ export function UpdateExamDialog({
           <ScrollArea className="max-h-[60vh] pr-4 mt-4">
             <form onSubmit={handleSubmit}>
               <TabsContent value="details" className="space-y-4">
+                
+                {/*EXAM TERM*/}
+                <div className="space-y-2">
+              <Label htmlFor="term">Select Term</Label>
+              <Select value={formData.term} onValueChange={handleTermChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Term" />
+                </SelectTrigger>
+                <SelectContent defaultValue={formData.term}>
+                  {TERMS.map((term) => (
+                    <SelectItem key={term} value={term}>
+                      {term}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+                
+                
                 <div className="space-y-2">
                   <Label htmlFor="examName">
                     Exam Name <span className="text-red-500">*</span>
@@ -285,13 +317,13 @@ export function UpdateExamDialog({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="note">Term</Label>
+                  <Label htmlFor="note">Note</Label>
                   <Input
                     id="note"
                     name="note"
                     value={formData.note}
                     onChange={handleInputChange}
-                    placeholder="e.g., Term I, Term II"
+                    placeholder="Note about the exam"
                   />
                 </div>
 

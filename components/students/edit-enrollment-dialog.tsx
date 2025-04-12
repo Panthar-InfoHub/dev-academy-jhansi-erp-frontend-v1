@@ -29,8 +29,6 @@ interface EditEnrollmentDialogProps {
 export function EditEnrollmentDialog({ enrollment, open, onOpenChange, onSuccess }: EditEnrollmentDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
-  const [startDateMonth, setStartDateMonth] = useState<Date>(new Date(enrollment.sessionStart))
-  const [endDateMonth, setEndDateMonth] = useState<Date>(new Date(enrollment.sessionEnd))
 
   // Enrollment form state
   const [formData, setFormData] = useState<updateEnrollmentBody>({
@@ -47,8 +45,6 @@ export function EditEnrollmentDialog({ enrollment, open, onOpenChange, onSuccess
         isComplete: enrollment.isComplete,
         one_time_fee: enrollment.one_time_fee || 0,
       })
-      setStartDateMonth(new Date(enrollment.sessionStart))
-      setEndDateMonth(new Date(enrollment.sessionEnd))
       setFormErrors({})
     }
   }, [open, enrollment])

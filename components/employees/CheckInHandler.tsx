@@ -113,7 +113,16 @@ export default function CheckInHandler({ employeeId }: { employeeId: string }) {
       const result = await getEmployeeAttendance(employeeId, startDate, endDate)
 
       if (result?.status === "SUCCESS" && result.data && result.data.length > 0) {
-        setAttendanceId(result.data[0].attendanceId)
+        
+        const todayAttendances = result.data.find((attendance) => startOfDay(attendance.date).toString() === today.toString())
+        
+        if (todayAttendances) {
+          toast.error("Attendance details not found. Please wait for system to sync or contact administrator.")
+          setIsLoading(false)
+          return
+        }
+        
+        setAttendanceId(todayAttendances.attendanceId)
         setAttendanceData(result.data)
         console.log("Attendance data fetched:", JSON.stringify(result.data))
       } else {
