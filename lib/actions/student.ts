@@ -449,49 +449,6 @@ export async function getEnrollmentDetails(studentId: string, enrollmentId: stri
 
 }
 
-export async function resetEnrollment(studentId: string, enrollmentId: string) {
-
-	console.log("Resetting student enrollment with id: ", enrollmentId)
-
-	try {
-
-		const response = await axios.put(
-			`${BACKEND_SERVER_URL}/v1/student/${studentId}/enrollment/${enrollmentId}/reset`,
-			{
-				headers: {
-					'Content-Type': 'application/json'
-				}
-			}
-		)
-
-		console.log("Successfully reset student enrollment with id: ", enrollmentId, "with response: ", response.data)
-
-		return parseServerResponse<null>({
-			status: "SUCCESS",
-			message: response.data.message,
-			data: null
-		})
-	}
-	catch (e) {
-
-		console.error(`Failed to reset student enrollment with id : ${enrollmentId}`, JSON.stringify(e))
-		if (e instanceof AxiosError) {
-			if (e.isAxiosError) {
-				console.debug("Reset Student Enrollment Error is Axios Error")
-				const errStatus = e.status
-				const responseStatusCode = e.response ? e.response.status : null
-				const responseBody = e.response ? e.response.data : null
-				console.error("Error details : ", JSON.stringify({ errStatus, responseStatusCode, responseBody }))
-				return parseServerResponse<null>({
-					status: "ERROR",
-					message: responseBody.error,
-					data: null
-				})
-			}
-		}
-	}
-
-}
 //Completed
 export async function updateEnrollment(studentId: string, enrollmentId: string, data: updateEnrollmentBody) {
 
@@ -879,6 +836,53 @@ export async function getStudentPaymentsInfo(studentId: string, limit: number = 
 		}
 	
 	}
+}
 
 
+export async function resetEnrollment(
+	studentId: string,
+	enrollmentId: string,
+	newFeeAmount?: number,
+): Promise<serverResponseParserArguments<null>> {
+	try {
+		const url = `${BACKEND_SERVER_URL}/v1/student/${studentId}/enrollment/${enrollmentId}/reset`;
+		const response = await fetch(url, {
+			method: "POST", // assuming reset is done via POST method
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({newFeeAmount}),
+		});
+
+		if (!response.ok) {
+			const errorBody = await response.json().catch(() => ({}));
+			console.error("Error resetting enrollment:", {
+				status: response.status,
+				body: errorBody,
+			});
+			return parseServerResponse<null>({
+				status: "ERROR",
+				message: errorBody.error || "Failed to reset enrollment",
+				data: null,
+			});
+		}
+
+		// Clear the cache for enrollment details.
+		// Here we assume the enrollment details have been cached using a key of the format:
+		// `student-enrollment-${studentId}-${enrollmentId}`
+		invalidateCache(`student-enrollment-${studentId}-${enrollmentId}`);
+
+		return parseServerResponse<null>({
+			status: "SUCCESS",
+			message: "Enrollment has been reset successfully",
+			data: null,
+		});
+	} catch (error: any) {
+		console.error("Unexpected error resetting enrollment:", error);
+		return parseServerResponse<null>({
+			status: "ERROR",
+			message: "An unexpected error occurred while resetting enrollment",
+			data: null,
+		});
+	}
 }

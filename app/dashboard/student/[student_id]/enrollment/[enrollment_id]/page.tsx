@@ -1,7 +1,7 @@
 import { auth, type customUser } from "@/auth"
 import { getEnrollmentDetails } from "@/lib/actions/student"
 import { redirect, notFound } from "next/navigation"
-import { EnrollmentDetail } from "@/components/students/enrollment-detail"
+import { EnrollmentDetail }  from "@/components/students/enrollment-detail"
 import { unstable_noStore as noStore } from "next/cache"
 
 interface EnrollmentDetailPageProps {
