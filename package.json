@@ -7,7 +7,7 @@
     "build": "next build && npm run sentry:sourcemaps",
     "start": "next start",
     "lint": "next lint",
-    "sentry:sourcemaps": "sentry-cli sourcemaps inject --org raj-dwivedi --project school-erp-v0-frontend-dev-academey .next && sentry-cli sourcemaps upload --org raj-dwivedi --project school-erp-v0-frontend-dev-academey .next"
+    "sentry:sourcemaps": "sentry-cli sourcemaps inject --org raj-dwivedi --project school-erp-v0-frontend-dev-academey .next && sentry-cli sourcemaps upload --org raj-dwivedi --project school-erp-v0-dev-academey .next"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.7",
