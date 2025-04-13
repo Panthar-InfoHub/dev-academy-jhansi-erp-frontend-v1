@@ -37,7 +37,8 @@ import { useTheme } from "next-themes"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Collapsible, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { motion, AnimatePresence } from "framer-motion"
 
 interface SidebarProps {
   user: customUser
@@ -77,6 +78,7 @@ export function SidebarNav({ user }: SidebarProps) {
         setIsCollapsed(savedState === "true")
       }
     }
+    console.log("Sidebar state initialized from localStorage")
   }, [])
 
   // Handle scroll to hide/show mobile menu
@@ -98,10 +100,12 @@ export function SidebarNav({ user }: SidebarProps) {
     }
 
     window.addEventListener("scroll", controlNavbar)
+    console.log("Scroll event listener added for mobile menu")
 
     // Cleanup
     return () => {
       window.removeEventListener("scroll", controlNavbar)
+      console.log("Scroll event listener removed")
     }
   }, [lastScrollY])
 
@@ -112,11 +116,13 @@ export function SidebarNav({ user }: SidebarProps) {
     if (typeof window !== "undefined") {
       localStorage.setItem("sidebarCollapsed", String(newState))
     }
+    console.log(`Sidebar toggled to ${newState ? "collapsed" : "expanded"} state`)
   }
 
   // Ensure theme component only renders after mounting to prevent hydration mismatch
   useEffect(() => {
     setMounted(true)
+    console.log("Component mounted")
   }, [])
 
   const isAdmin = user.isAdmin
@@ -236,6 +242,7 @@ export function SidebarNav({ user }: SidebarProps) {
       ...prev,
       [title]: !prev[title],
     }))
+    console.log(`Group ${title} toggled`)
   }
 
   const initials = user.name
@@ -246,26 +253,7 @@ export function SidebarNav({ user }: SidebarProps) {
     .slice(0, 2)
 
   const profileImageUrl = `${BACKEND_SERVER_URL}/v1/employee/${user.id}/profileImg`
-
-  const handleNavItemClick = (item: NavItem) => {
-    // If the item has children, navigate to the first visible child
-    if (item.children && item.children.length > 0) {
-      const firstVisibleChild = item.children.find(
-        (child) => child.visible && (!child.adminOnly || (child.adminOnly && isAdmin)),
-      )
-
-      if (firstVisibleChild) {
-        router.push(firstVisibleChild.href)
-        if (isMobileMenuOpen) setIsMobileMenuOpen(false)
-        return
-      }
-    }
-
-    // Otherwise, navigate to the item's href
-    router.push(item.href)
-    if (isMobileMenuOpen) setIsMobileMenuOpen(false)
-  }
-
+  
   // Helper function to check if a route or any of its children are active
   const isRouteActive = (item: NavItem): boolean => {
     // Check if the current path exactly matches this route
@@ -308,6 +296,65 @@ export function SidebarNav({ user }: SidebarProps) {
     return pathname === path || (path !== "/dashboard" && pathname.startsWith(path))
   }
 
+  // Animation variants for sidebar
+  const sidebarVariants = {
+    expanded: { width: "220px", transition: { duration: 0.3, ease: "easeInOut" } },
+    collapsed: { width: "60px", transition: { duration: 0.3, ease: "easeInOut" } },
+  }
+
+  // Animation variants for content that appears/disappears
+  const contentVariants = {
+    visible: {
+      opacity: 1,
+      x: 0,
+      transition: {
+        duration: 0.2,
+        ease: "easeOut",
+        delay: 0.1,
+      },
+    },
+    hidden: {
+      opacity: 0,
+      x: -10,
+      transition: {
+        duration: 0.2,
+        ease: "easeIn",
+      },
+    },
+  }
+
+  // Animation variants for icons
+  const iconVariants = {
+    expanded: { scale: 1, transition: { duration: 0.2 } },
+    collapsed: { scale: 1.2, transition: { duration: 0.2 } },
+  }
+
+  // Animation variants for mobile menu button
+  const mobileMenuButtonVariants = {
+    visible: { opacity: 1, y: 0, transition: { duration: 0.3 } },
+    hidden: { opacity: 0, y: -20, transition: { duration: 0.3 } },
+  }
+
+  // Animation variants for child items
+  const childItemVariants = {
+    open: {
+      height: "auto",
+      opacity: 1,
+      transition: {
+        height: { duration: 0.3, ease: "easeInOut" },
+        opacity: { duration: 0.3, ease: "easeInOut" },
+      },
+    },
+    closed: {
+      height: 0,
+      opacity: 0,
+      transition: {
+        height: { duration: 0.3, ease: "easeInOut" },
+        opacity: { duration: 0.2, ease: "easeInOut" },
+      },
+    },
+  }
+
   const renderNavItem = (item: NavItem, isNested = false, forMobile = false) => {
     // Skip items that should not be visible to this user
     if (!item.visible || (item.adminOnly && !isAdmin)) {
@@ -336,20 +383,30 @@ export function SidebarNav({ user }: SidebarProps) {
       if (!hasVisibleChildren) {
         // If no visible children, render as a normal link
         return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={cn(
-              "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
-              isActive ? "bg-accent text-accent-foreground" : "transparent",
-              isCollapsed && !forMobile && "justify-center px-0",
-              isNested && "pl-6", // Reduced padding for nested items
-            )}
-            onClick={() => isMobileMenuOpen && setIsMobileMenuOpen(false)}
-          >
-            <item.icon className={cn("h-4 w-4", isActive && "h-[18px] w-[18px]")} />
-            {(!isCollapsed || forMobile) && <span>{item.title}</span>}
-          </Link>
+          <motion.div key={item.href} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+            <Link
+              
+              href={item.href}
+              className={cn(
+                "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
+                isActive ? "bg-accent text-accent-foreground" : "transparent",
+                isCollapsed && !forMobile && "justify-center px-0",
+                isNested && "pl-6", // Reduced padding for nested items
+              )}
+              onClick={() => isMobileMenuOpen && setIsMobileMenuOpen(false)}
+            >
+              <motion.div variants={iconVariants} animate={isCollapsed && !forMobile ? "collapsed" : "expanded"}>
+                <item.icon className={cn("h-4 w-4", isActive && "h-[18px] w-[18px]")} />
+              </motion.div>
+              {(!isCollapsed || forMobile) && (
+                <AnimatePresence>
+                  <motion.span variants={contentVariants} initial="hidden" animate="visible" exit="hidden">
+                    {item.title}
+                  </motion.span>
+                </AnimatePresence>
+              )}
+            </Link>
+          </motion.div>
         )
       }
 
@@ -359,37 +416,51 @@ export function SidebarNav({ user }: SidebarProps) {
           <div key={item.title} className="space-y-0.5 py-0.5">
             <Collapsible open={openGroups[item.title] || hasActiveChild} onOpenChange={() => toggleGroup(item.title)}>
               <div className="flex items-center">
-                <Link
-                  href={item.children[0].href}
-                  className={cn(
-                    "flex flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
-                    isActive ? "bg-accent text-accent-foreground" : "transparent",
-                  )}
-                  onClick={() => isMobileMenuOpen && setIsMobileMenuOpen(false)}
-                >
-                  <item.icon className={cn("h-4 w-4", isActive && "h-[18px] w-[18px]")} />
-                  <span>{item.title}</span>
-                </Link>
-                <CollapsibleTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="flex-1">
+                  <Link
+                    prefetch={true}
+                    href={item.children[0].href}
                     className={cn(
-                      "h-7 w-7 p-0",
-                      (isActive || hasActiveChild) && "hidden", // Hide when active or has active child
+                      "flex flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
+                      isActive ? "bg-accent text-accent-foreground" : "transparent",
                     )}
+                    onClick={() => isMobileMenuOpen && setIsMobileMenuOpen(false)}
                   >
-                    {openGroups[item.title] ? (
-                      <ChevronDown className="h-3 w-3" />
-                    ) : (
-                      <ChevronRight className="h-3 w-3" />
-                    )}
-                  </Button>
+                    <item.icon className={cn("h-4 w-4", isActive && "h-[18px] w-[18px]")} />
+                    <span>{item.title}</span>
+                  </Link>
+                </motion.div>
+                <CollapsibleTrigger asChild>
+                  <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={cn(
+                        "h-7 w-7 p-0",
+                        (isActive || hasActiveChild) && "hidden", // Hide when active or has active child
+                      )}
+                    >
+                      <motion.div animate={{ rotate: openGroups[item.title] ? 180 : 0 }} transition={{ duration: 0.3 }}>
+                        {openGroups[item.title] ? (
+                          <ChevronDown className="h-3 w-3" />
+                        ) : (
+                          <ChevronRight className="h-3 w-3" />
+                        )}
+                      </motion.div>
+                    </Button>
+                  </motion.div>
                 </CollapsibleTrigger>
               </div>
-              <CollapsibleContent className="mt-0.5 space-y-0.5">
-                {item.children.map((child) => renderNavItem(child, true, forMobile))}
-              </CollapsibleContent>
+              <motion.div
+                variants={childItemVariants}
+                initial="closed"
+                animate={openGroups[item.title] || hasActiveChild ? "open" : "closed"}
+                className="overflow-hidden"
+              >
+                <div className="mt-0.5 space-y-0.5">
+                  {item.children.map((child) => renderNavItem(child, true, forMobile))}
+                </div>
+              </motion.div>
             </Collapsible>
           </div>
         )
@@ -402,46 +473,68 @@ export function SidebarNav({ user }: SidebarProps) {
       return (
         <div key={item.title} className="space-y-0.5 py-0.5">
           {/* Main parent icon */}
-          <Link
-            href={item.children[0].href}
-            className={cn(
-              "flex justify-center rounded-md px-0 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
-              isParentActive ? "bg-accent text-accent-foreground" : "transparent",
-            )}
-            onClick={() => isMobileMenuOpen && setIsMobileMenuOpen(false)}
-          >
-            <item.icon className={cn("h-4 w-4", isParentActive && "h-[18px] w-[18px] text-accent-foreground")} />
-          </Link>
+          <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+            <Link
+              prefetch={true}
+              href={item.children[0].href}
+              className={cn(
+                "flex justify-center rounded-md px-0 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
+                isParentActive ? "bg-accent text-accent-foreground" : "transparent",
+              )}
+              onClick={() => isMobileMenuOpen && setIsMobileMenuOpen(false)}
+            >
+              <motion.div variants={iconVariants} animate="collapsed">
+                <item.icon className={cn("h-4 w-4", isParentActive && "h-[18px] w-[18px] text-accent-foreground")} />
+              </motion.div>
+            </Link>
+          </motion.div>
 
           {/* Show all child icons when parent is active */}
-          {isParentActive && (
-            <div className="space-y-0.5 mt-0.5">
-              {item.children
-                .filter((child) => child.visible && (!child.adminOnly || (child.adminOnly && isAdmin)))
-                .map((child, index) => {
-                  const isChildActive = isPathActive(child.href)
-                  return (
-                    <Link
-                      key={child.href}
-                      href={child.href}
-                      className={cn(
-                        "flex justify-center rounded-md px-0 py-1.5 text-sm font-medium",
-                        isChildActive
-                          ? "bg-accent/80 text-accent-foreground"
-                          : "bg-muted/40 hover:bg-accent/50 hover:text-accent-foreground",
-                      )}
-                    >
-                      <child.icon
-                        className={cn(
-                          "h-4 w-4",
-                          isChildActive ? "h-[18px] w-[18px] text-accent-foreground" : "text-muted-foreground",
-                        )}
-                      />
-                    </Link>
-                  )
-                })}
-            </div>
-          )}
+          <AnimatePresence>
+            {isParentActive && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-0.5 mt-0.5"
+              >
+                {item.children
+                  .filter((child) => child.visible && (!child.adminOnly || (child.adminOnly && isAdmin)))
+                  .map((child, index) => {
+                    const isChildActive = isPathActive(child.href)
+                    return (
+                      <motion.div
+                        key={child.href}
+                        initial={{ opacity: 0, y: -5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2, delay: index * 0.05 }}
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                      >
+                        <Link
+                          prefetch={true}
+                          href={child.href}
+                          className={cn(
+                            "flex justify-center rounded-md px-0 py-1.5 text-sm font-medium",
+                            isChildActive
+                              ? "bg-accent/80 text-accent-foreground"
+                              : "bg-muted/40 hover:bg-accent/50 hover:text-accent-foreground",
+                          )}
+                        >
+                          <child.icon
+                            className={cn(
+                              "h-4 w-4",
+                              isChildActive ? "h-[18px] w-[18px] text-accent-foreground" : "text-muted-foreground",
+                            )}
+                          />
+                        </Link>
+                      </motion.div>
+                    )
+                  })}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       )
     }
@@ -450,62 +543,100 @@ export function SidebarNav({ user }: SidebarProps) {
     if (isNested) {
       const isItemActive = isPathActive(item.href)
       return (
-        <Link
-          key={item.href}
-          href={item.href}
-          className={cn(
-            "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
-            isItemActive ? "bg-accent text-accent-foreground" : "transparent",
-            isCollapsed && !forMobile && "justify-center px-0",
-            isCollapsed && !forMobile ? "bg-muted/40" : "pl-6", // Use background color instead of border
-          )}
-          onClick={() => isMobileMenuOpen && setIsMobileMenuOpen(false)}
-        >
-          <item.icon className={cn("h-4 w-4", isItemActive && "h-[18px] w-[18px] text-accent-foreground")} />
-          {(!isCollapsed || forMobile) && <span>{item.title}</span>}
-        </Link>
+        <motion.div key={item.href} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+          <Link
+            prefetch={true}
+            href={item.href}
+            className={cn(
+              "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
+              isItemActive ? "bg-accent text-accent-foreground" : "transparent",
+              isCollapsed && !forMobile && "justify-center px-0",
+              isCollapsed && !forMobile ? "bg-muted/40" : "pl-6", // Use background color instead of border
+            )}
+            onClick={() => isMobileMenuOpen && setIsMobileMenuOpen(false)}
+          >
+            <motion.div variants={iconVariants} animate={isCollapsed && !forMobile ? "collapsed" : "expanded"}>
+              <item.icon className={cn("h-4 w-4", isItemActive && "h-[18px] w-[18px] text-accent-foreground")} />
+            </motion.div>
+            {(!isCollapsed || forMobile) && (
+              <AnimatePresence>
+                <motion.span variants={contentVariants} initial="hidden" animate="visible" exit="hidden">
+                  {item.title}
+                </motion.span>
+              </AnimatePresence>
+            )}
+          </Link>
+        </motion.div>
       )
     }
 
     return (
-      <Link
-        key={item.href}
-        href={item.href}
-        className={cn(
-          "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
-          isActive ? "bg-accent text-accent-foreground" : "transparent",
-          isCollapsed && !forMobile && "justify-center px-0",
-        )}
-        onClick={() => isMobileMenuOpen && setIsMobileMenuOpen(false)}
-      >
-        <item.icon className={cn("h-4 w-4", isActive && "h-[18px] w-[18px] text-accent-foreground")} />
-        {(!isCollapsed || forMobile) && <span>{item.title}</span>}
-      </Link>
+      <motion.div key={item.href} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+        <Link
+          prefetch={true}
+          href={item.href}
+          className={cn(
+            "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
+            isActive ? "bg-accent text-accent-foreground" : "transparent",
+            isCollapsed && !forMobile && "justify-center px-0",
+          )}
+          onClick={() => isMobileMenuOpen && setIsMobileMenuOpen(false)}
+        >
+          <motion.div variants={iconVariants} animate={isCollapsed && !forMobile ? "collapsed" : "expanded"}>
+            <item.icon className={cn("h-4 w-4", isActive && "h-[18px] w-[18px] text-accent-foreground")} />
+          </motion.div>
+          {(!isCollapsed || forMobile) && (
+            <AnimatePresence>
+              <motion.span variants={contentVariants} initial="hidden" animate="visible" exit="hidden">
+                {item.title}
+              </motion.span>
+            </AnimatePresence>
+          )}
+        </Link>
+      </motion.div>
     )
   }
 
   // Desktop sidebar - fixed position to prevent scrolling
   const DesktopSidebar = (
-    <div
-      className={cn(
-        "hidden md:flex flex-col h-screen border-r bg-background transition-all duration-300 fixed top-0 left-0",
-        isCollapsed ? "w-[60px]" : "w-[220px]", // Reduced width
-      )}
+    <motion.div
+      variants={sidebarVariants}
+      initial={isCollapsed ? "collapsed" : "expanded"}
+      animate={isCollapsed ? "collapsed" : "expanded"}
+      className="hidden md:flex flex-col h-screen border-r bg-background fixed top-0 left-0"
     >
       <div className="flex h-12 items-center px-3 border-b">
-        <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
-          {!isCollapsed && <span className="text-sm">{SCHOOL_NAME}</span>} {/* Smaller text */}
+        <Link
+          prefetch={true}
+          href="/dashboard" className="flex items-center gap-2 font-semibold">
+          {!isCollapsed && (
+            <AnimatePresence>
+              <motion.span
+                variants={contentVariants}
+                initial="hidden"
+                animate="visible"
+                exit="hidden"
+                className="text-sm"
+              >
+                {SCHOOL_NAME}
+              </motion.span>
+            </AnimatePresence>
+          )}
         </Link>
         <div className="ml-auto">
-          <Button
-            variant="ghost"
-            size="sm" // Smaller button
-            onClick={toggleSidebar}
-            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            className="h-7 w-7 p-0" // Smaller button
-          >
-            {isCollapsed ? <Menu className="h-4 w-4" /> : <X className="h-4 w-4" />}
-          </Button>
+          <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+            <Button
+              variant="ghost"
+              size="sm" // Smaller button
+              onClick={toggleSidebar}
+              aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              className="h-7 w-7 p-0" // Smaller button
+            >
+              <motion.div animate={{ rotate: isCollapsed ? 0 : 180 }} transition={{ duration: 0.3 }}>
+                {isCollapsed ? <Menu className="h-4 w-4" /> : <X className="h-4 w-4" />}
+              </motion.div>
+            </Button>
+          </motion.div>
         </div>
       </div>
 
@@ -521,33 +652,68 @@ export function SidebarNav({ user }: SidebarProps) {
         {mounted && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className={cn("w-full h-7", isCollapsed ? "justify-center px-0" : "justify-start")} // Smaller height
-              >
-                <Settings className="h-4 w-4" />
-                {!isCollapsed && <span className="ml-2 text-xs">Theme</span>} {/* Smaller text */}
-              </Button>
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={cn("w-full h-7", isCollapsed ? "justify-center px-0" : "justify-start")} // Smaller height
+                >
+                  <motion.div variants={iconVariants} animate={isCollapsed ? "collapsed" : "expanded"}>
+                    {theme === "system" ? (
+                      <Laptop className="h-4 w-4" />
+                    ) : theme === "dark" ? (
+                      <Moon className="h-4 w-4" />
+                    ) : (
+                      <Sun className="h-4 w-4" />
+                    )}
+                  </motion.div>
+                  {!isCollapsed && (
+                    <AnimatePresence>
+                      <motion.span
+                        variants={contentVariants}
+                        initial="hidden"
+                        animate="visible"
+                        exit="hidden"
+                        className="ml-2 text-xs"
+                      >
+                        {`${theme.slice(0, 1).toUpperCase()}${theme.slice(1)}`}
+                      </motion.span>
+                    </AnimatePresence>
+                  )}
+                </Button>
+              </motion.div>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setTheme("light")}>
-                <Sun className="mr-2 h-4 w-4" />
-                Light
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme("dark")}>
-                <Moon className="mr-2 h-4 w-4" />
-                Dark
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme("system")}>
-                <Laptop className="mr-2 h-4 w-4" />
-                System
-              </DropdownMenuItem>
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <DropdownMenuItem onClick={() => setTheme("light")}>
+                  <Sun className="mr-2 h-4 w-4" />
+                  Light
+                </DropdownMenuItem>
+              </motion.div>
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <DropdownMenuItem onClick={() => setTheme("dark")}>
+                  <Moon className="mr-2 h-4 w-4" />
+                  Dark
+                </DropdownMenuItem>
+              </motion.div>
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <DropdownMenuItem onClick={() => setTheme("system")}>
+                  <Laptop className="mr-2 h-4 w-4" />
+                  System
+                </DropdownMenuItem>
+              </motion.div>
             </DropdownMenuContent>
           </DropdownMenu>
         )}
-        <div
-          onClick={() => router.push("/dashboard/profile")}
+        <motion.div
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onHoverStart={() => {
+            router.prefetch("/dashboard/profile")
+          }}
+          onClick={() => {
+            router.push("/dashboard/profile")
+          }}
           className={cn("flex items-center gap-2 mt-3 cursor-pointer", isCollapsed && "justify-center")}
         >
           <Avatar className="h-8 w-8">
@@ -555,56 +721,97 @@ export function SidebarNav({ user }: SidebarProps) {
             <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>
           {!isCollapsed && (
-            <div className="flex flex-col overflow-hidden">
-              <span className="font-medium truncate text-xs">{user.name}</span> {/* Smaller text */}
-              <span className="text-xs text-muted-foreground truncate">{user.email}</span> {/* Smaller text */}
-            </div>
+            <AnimatePresence>
+              <motion.div
+                variants={contentVariants}
+                initial="hidden"
+                animate="visible"
+                exit="hidden"
+                className="flex flex-col overflow-hidden"
+              >
+                <span className="font-medium truncate text-xs">{user.name}</span>
+                <span className="text-xs text-muted-foreground truncate">{user.email}</span>
+              </motion.div>
+            </AnimatePresence>
           )}
-        </div>
+        </motion.div>
         <form action={handleSignOut} className="mt-3">
-          <Button
-            variant="outline"
-            size="sm"
-            className={cn("w-full h-7", isCollapsed ? "justify-center px-0" : "justify-start")} // Smaller height
-            type="submit"
-          >
-            <LogOut className="h-4 w-4" />
-            {!isCollapsed && <span className="ml-2 text-xs">Log out</span>} {/* Smaller text */}
-          </Button>
+          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+            <Button
+              variant="outline"
+              size="sm"
+              className={cn("w-full h-7", isCollapsed ? "justify-center px-0" : "justify-start")} // Smaller height
+              type="submit"
+            >
+              <motion.div variants={iconVariants} animate={isCollapsed ? "collapsed" : "expanded"}>
+                <LogOut className="h-4 w-4" />
+              </motion.div>
+              {!isCollapsed && (
+                <AnimatePresence>
+                  <motion.span
+                    variants={contentVariants}
+                    initial="hidden"
+                    animate="visible"
+                    exit="hidden"
+                    className="ml-2 text-xs"
+                  >
+                    Log out
+                  </motion.span>
+                </AnimatePresence>
+              )}
+            </Button>
+          </motion.div>
         </form>
       </div>
-    </div>
+    </motion.div>
   )
 
   // Mobile sidebar (using Sheet component)
   const MobileSidebar = (
     <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
       <SheetTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn(
-            "md:hidden fixed top-2 left-2 z-50 transition-opacity duration-300",
-            showMobileMenu ? "opacity-100" : "opacity-0 pointer-events-none",
-          )}
+        <motion.div
+          variants={mobileMenuButtonVariants}
+          initial="hidden"
+          animate={showMobileMenu ? "visible" : "hidden"}
         >
-          <Menu className="h-6 w-6" />
-          <span className="sr-only">Toggle menu</span>
-        </Button>
+          <Button variant="ghost" size="icon" className="md:hidden fixed top-2 left-2 z-50">
+            <Menu className="h-6 w-6" />
+            <span className="sr-only">Toggle menu</span>
+          </Button>
+        </motion.div>
       </SheetTrigger>
       <SheetContent side="left" className="p-0 w-[250px]">
-        <div className="flex flex-col h-full">
+        <motion.div
+          initial={{ x: -250 }}
+          animate={{ x: 0 }}
+          transition={{ type: "spring", damping: 20, stiffness: 100 }}
+          className="flex flex-col h-full"
+        >
           <div className="flex h-14 items-center px-4 border-b">
-            <Link href="/dashboard" className="flex items-center gap-3 font-semibold">
-              <span>{SCHOOL_NAME}</span>
+            <Link
+              prefetch={true}
+              href="/dashboard" className="flex items-center gap-3 font-semibold">
+              <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
+                {SCHOOL_NAME}
+              </motion.span>
             </Link>
           </div>
 
           <div className="flex-1 overflow-auto py-4">
             <nav className="grid gap-1 px-2">
-              {routes.map((route) => {
+              {routes.map((route, index) => {
                 // For mobile, always render with forMobile=true to show nested items
-                return renderNavItem(route, false, true)
+                return (
+                  <motion.div
+                    key={route.href}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                  >
+                    {renderNavItem(route, false, true)}
+                  </motion.div>
+                )
               })}
             </nav>
           </div>
@@ -613,29 +820,41 @@ export function SidebarNav({ user }: SidebarProps) {
             {mounted && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="w-full justify-start">
-                    <Settings className="h-4 w-4" />
-                    <span className="ml-2">Theme</span>
-                  </Button>
+                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                    <Button variant="outline" size="sm" className="w-full justify-start">
+                      <Settings className="h-4 w-4" />
+                      <span className="ml-2">Theme</span>
+                    </Button>
+                  </motion.div>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => setTheme("light")}>
-                    <Sun className="mr-2 h-4 w-4" />
-                    Light
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setTheme("dark")}>
-                    <Moon className="mr-2 h-4 w-4" />
-                    Dark
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setTheme("system")}>
-                    <Laptop className="mr-2 h-4 w-4" />
-                    System
-                  </DropdownMenuItem>
+                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                    <DropdownMenuItem onClick={() => setTheme("light")}>
+                      <Sun className="mr-2 h-4 w-4" />
+                      Light
+                    </DropdownMenuItem>
+                  </motion.div>
+                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                    <DropdownMenuItem onClick={() => setTheme("dark")}>
+                      <Moon className="mr-2 h-4 w-4" />
+                      Dark
+                    </DropdownMenuItem>
+                  </motion.div>
+                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                    <DropdownMenuItem onClick={() => setTheme("system")}>
+                      <Laptop className="mr-2 h-4 w-4" />
+                      System
+                    </DropdownMenuItem>
+                  </motion.div>
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
 
-            <div className="flex items-center gap-3 mt-4">
+            <motion.div
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="flex items-center gap-3 mt-4"
+            >
               <Avatar className="h-9 w-9">
                 <AvatarImage src={profileImageUrl || "/placeholder.svg"} alt={user.name} />
                 <AvatarFallback>{initials}</AvatarFallback>
@@ -644,16 +863,18 @@ export function SidebarNav({ user }: SidebarProps) {
                 <span className="font-medium truncate">{user.name}</span>
                 <span className="text-sm text-muted-foreground truncate">{user.email}</span>
               </div>
-            </div>
+            </motion.div>
 
             <form action={handleSignOut} className="mt-4">
-              <Button variant="outline" className="w-full justify-start" type="submit">
-                <LogOut className="h-4 w-4" />
-                <span className="ml-2">Log out</span>
-              </Button>
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <Button variant="outline" className="w-full justify-start" type="submit">
+                  <LogOut className="h-4 w-4" />
+                  <span className="ml-2">Log out</span>
+                </Button>
+              </motion.div>
             </form>
           </div>
-        </div>
+        </motion.div>
       </SheetContent>
     </Sheet>
   )
@@ -663,7 +884,13 @@ export function SidebarNav({ user }: SidebarProps) {
     <>
       {DesktopSidebar}
       {MobileSidebar}
-      <div className={cn("md:pl-[220px] pt-14 md:pt-0", isCollapsed && "md:pl-[60px]")}></div>
+      <motion.div
+        className={cn("md:pt-0 pt-14")}
+        animate={{
+          paddingLeft: isCollapsed ? "60px" : "220px",
+        }}
+        transition={{ duration: 0.3, ease: "easeInOut" }}
+      ></motion.div>
     </>
   )
 }

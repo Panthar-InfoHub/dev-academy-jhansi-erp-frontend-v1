@@ -180,10 +180,10 @@ export async function createNewStudent(data: createNewStudentData) {
 		
 		// After creating a new student, you might want to revalidate related cache or paths.
 		revalidatePath("/dashboard/student");
-		return parseServerResponse({
+		return parseServerResponse<completeStudentDetails>({
 			status: "SUCCESS",
 			message: "Student Created Successfully",
-			data: response.data.student
+			data: response.data.studentData
 		});
 	} catch (e: any) {
 		console.error("Failed to create new student", e);
