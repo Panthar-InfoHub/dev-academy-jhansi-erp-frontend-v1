@@ -4,7 +4,6 @@ import { Inter } from "next/font/google"
 import { Toaster } from "sonner"
 import { ThemeProvider } from "@/components/theme-provider"
 import { SessionProvider } from "next-auth/react"
-import { auth, type customUser } from "@/auth"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -18,8 +17,6 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  const session = await auth()
-  const user = session?.user as customUser
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -27,7 +24,7 @@ export default async function RootLayout({
         <SessionProvider>
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
             {children}
-            <Toaster position="bottom-right" richColors={true} closeButton={true} theme={"system"} />
+            <Toaster position="top-center" richColors={true} closeButton={true} theme={"system"} />
           </ThemeProvider>
         </SessionProvider>
       </body>

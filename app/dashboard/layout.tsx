@@ -2,7 +2,6 @@ import type React from "react"
 import { auth, type customUser } from "@/auth"
 import { redirect } from "next/navigation"
 import { SidebarNav } from "@/components/sidebar"
-import { Toaster } from "sonner"
 
 export default async function DashboardLayout({
   children,

@@ -15,14 +15,11 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon } from "lucide-react"
-import { format } from "date-fns"
-import { cn } from "@/lib/utils"
+import { Popover, PopoverTrigger } from "@/components/ui/popover"
 import { toast } from "sonner"
 import { payStudentFee } from "@/lib/actions/student"
 import { useRouter } from "next/navigation"
+import { EnhancedCalendar } from "@/components/custom/date/calandar-pickup";
 
 interface PayFeesDialogProps {
   enrollment: completeStudentEnrollment
@@ -155,26 +152,8 @@ export function PayFeesDialog({ enrollment, open, onOpenChange, onSuccess, stude
               </Label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !formData.paidOn && "text-muted-foreground",
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {formData.paidOn ? format(formData.paidOn, "PPP") : <span>Pick a date</span>}
-                  </Button>
+                  <EnhancedCalendar selected={formData.paidOn} onSelect={(date) => date && setFormData((prev) => ({ ...prev, paidOn: date }))} />
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={formData.paidOn}
-                    onSelect={(date) => date && setFormData((prev) => ({ ...prev, paidOn: date }))}
-                    initialFocus
-                    disabled={(date) => date > new Date()}
-                  />
-                </PopoverContent>
               </Popover>
             </div>
           </div>

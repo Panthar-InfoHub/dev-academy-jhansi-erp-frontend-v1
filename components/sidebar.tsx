@@ -67,6 +67,8 @@ export function SidebarNav({ user }: SidebarProps) {
     Payments: true,
     Admin: true,
   })
+  const [activeRoute, setActiveRoute] = useState<string | null>(null)
+  const [isLargeScreen, setIsLargeScreen] = useState(false)
 
   // Add localStorage to remember sidebar state
   useEffect(() => {
@@ -123,6 +125,30 @@ export function SidebarNav({ user }: SidebarProps) {
   useEffect(() => {
     setMounted(true)
     console.log("Component mounted")
+  }, [])
+
+  // Check for screen size
+  useEffect(() => {
+    // Check if window is available (for SSR compatibility)
+    if (typeof window !== "undefined") {
+      // Define your media query for md breakpoint
+      const mediaQuery = window.matchMedia("(min-width: 768px)") // md breakpoint in Tailwind
+
+      // Set initial value
+      setIsLargeScreen(mediaQuery.matches)
+
+      // Add listener for changes
+      const handleChange = (e: MediaQueryListEvent) => {
+        setIsLargeScreen(e.matches)
+      }
+
+      mediaQuery.addEventListener("change", handleChange)
+
+      // Clean up
+      return () => {
+        mediaQuery.removeEventListener("change", handleChange)
+      }
+    }
   }, [])
 
   const isAdmin = user.isAdmin
@@ -237,6 +263,64 @@ export function SidebarNav({ user }: SidebarProps) {
     },
   ]
 
+  // Determine the most specific active route on pathname change
+  useEffect(() => {
+    console.log("Current pathname:", pathname)
+
+    // Find the most specific matching route
+    let bestMatch: { route: string; specificity: number } = { route: "", specificity: 0 }
+
+    // Helper function to check all routes recursively
+    const checkRoutes = (items: NavItem[], parentPath = "") => {
+      items.forEach((item) => {
+        if (!item.visible || (item.adminOnly && !isAdmin)) return
+
+        // Check if this route matches the current path
+        if (pathname === item.href) {
+          // Exact match has highest specificity
+          const specificity = item.href.split("/").length * 1000
+          if (specificity > bestMatch.specificity) {
+            bestMatch = { route: item.href, specificity }
+          }
+        } else if (pathname.startsWith(item.href + "/")) {
+          // Partial match - specificity based on path segments
+          const specificity = item.href.split("/").length
+          if (specificity > bestMatch.specificity) {
+            bestMatch = { route: item.href, specificity }
+          }
+        }
+
+        // Check children
+        if (item.children) {
+          checkRoutes(item.children, item.href)
+        }
+      })
+    }
+
+    checkRoutes(routes)
+
+    console.log("Best matching route:", bestMatch.route, "with specificity:", bestMatch.specificity)
+    setActiveRoute(bestMatch.route)
+
+    // Auto-expand parent groups of active items
+    routes.forEach((route) => {
+      if (route.children) {
+        const hasActiveChild = route.children.some(
+          (child) =>
+            child.href === bestMatch.route ||
+            (bestMatch.route.startsWith(child.href + "/") && child.href !== "/dashboard"),
+        )
+
+        if (hasActiveChild) {
+          setOpenGroups((prev) => ({
+            ...prev,
+            [route.title]: true,
+          }))
+        }
+      }
+    })
+  }, [pathname, isAdmin])
+
   const toggleGroup = (title: string) => {
     setOpenGroups((prev) => ({
       ...prev,
@@ -253,47 +337,21 @@ export function SidebarNav({ user }: SidebarProps) {
     .slice(0, 2)
 
   const profileImageUrl = `${BACKEND_SERVER_URL}/v1/employee/${user.id}/profileImg`
-  
-  // Helper function to check if a route or any of its children are active
-  const isRouteActive = (item: NavItem): boolean => {
-    // Check if the current path exactly matches this route
-    if (pathname === item.href) {
-      return true
-    }
 
-    // Special case for employees section - only for collapsed sidebar
-    if (
-      isCollapsed &&
-      item.title === "Employees" &&
-      (pathname.startsWith("/dashboard/employees/") || pathname.startsWith("/dashboard/employee/"))
-    ) {
-      return true
-    }
-
-    // Check if any child routes are active - only for collapsed sidebar
-    if (isCollapsed && item.children) {
-      return item.children.some(
-        (child) => pathname === child.href || (child.href !== "/dashboard" && pathname.startsWith(child.href)),
-      )
-    }
-
-    return false
+  // Check if a route is active
+  const isRouteActive = (href: string): boolean => {
+    return href === activeRoute
   }
 
-  // Helper function to find active child of a parent route
-  const findActiveChild = (item: NavItem): NavItem | null => {
-    if (!item.children) return null
+  // Check if a parent route has an active child
+  const hasActiveChild = (item: NavItem): boolean => {
+    if (!item.children) return false
 
-    return (
-      item.children.find(
-        (child) => pathname === child.href || (child.href !== "/dashboard" && pathname.startsWith(child.href)),
-      ) || null
+    return item.children.some(
+      (child) =>
+        child.href === activeRoute ||
+        (activeRoute && activeRoute.startsWith(child.href + "/") && child.href !== "/dashboard"),
     )
-  }
-
-  // Helper function to check if a specific path is active
-  const isPathActive = (path: string): boolean => {
-    return pathname === path || (path !== "/dashboard" && pathname.startsWith(path))
   }
 
   // Animation variants for sidebar
@@ -361,17 +419,12 @@ export function SidebarNav({ user }: SidebarProps) {
       return null
     }
 
-    // Different active state logic based on sidebar state
-    const hasActiveChild = item.children?.some(
-      (child) => pathname === child.href || (child.href !== "/dashboard" && pathname.startsWith(child.href)),
-    )
-
-    // For expanded sidebar: main entry is active only if exact match
-    // For collapsed sidebar: main entry is active if it or any child is active
-    const isActive = isCollapsed && !forMobile ? isRouteActive(item) : pathname === item.href
+    // Check if this item is active
+    const isActive = isRouteActive(item.href)
+    const itemHasActiveChild = hasActiveChild(item)
 
     console.log(
-      `Checking route: ${item.title}, href: ${item.href}, pathname: ${pathname}, isActive: ${isActive}, hasActiveChild: ${hasActiveChild}`,
+      `Rendering route: ${item.title}, href: ${item.href}, isActive: ${isActive}, hasActiveChild: ${itemHasActiveChild}`,
     )
 
     // If the item has children, render a collapsible
@@ -385,7 +438,6 @@ export function SidebarNav({ user }: SidebarProps) {
         return (
           <motion.div key={item.href} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
             <Link
-              
               href={item.href}
               className={cn(
                 "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
@@ -414,7 +466,10 @@ export function SidebarNav({ user }: SidebarProps) {
       if (!isCollapsed || forMobile) {
         return (
           <div key={item.title} className="space-y-0.5 py-0.5">
-            <Collapsible open={openGroups[item.title] || hasActiveChild} onOpenChange={() => toggleGroup(item.title)}>
+            <Collapsible
+              open={openGroups[item.title] || itemHasActiveChild}
+              onOpenChange={() => toggleGroup(item.title)}
+            >
               <div className="flex items-center">
                 <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="flex-1">
                   <Link
@@ -437,7 +492,7 @@ export function SidebarNav({ user }: SidebarProps) {
                       size="sm"
                       className={cn(
                         "h-7 w-7 p-0",
-                        (isActive || hasActiveChild) && "hidden", // Hide when active or has active child
+                        (isActive || itemHasActiveChild) && "hidden", // Hide when active or has active child
                       )}
                     >
                       <motion.div animate={{ rotate: openGroups[item.title] ? 180 : 0 }} transition={{ duration: 0.3 }}>
@@ -454,7 +509,7 @@ export function SidebarNav({ user }: SidebarProps) {
               <motion.div
                 variants={childItemVariants}
                 initial="closed"
-                animate={openGroups[item.title] || hasActiveChild ? "open" : "closed"}
+                animate={openGroups[item.title] || itemHasActiveChild ? "open" : "closed"}
                 className="overflow-hidden"
               >
                 <div className="mt-0.5 space-y-0.5">
@@ -467,8 +522,7 @@ export function SidebarNav({ user }: SidebarProps) {
       }
 
       // For collapsed sidebar - show parent and all children when parent is active
-      const activeChild = findActiveChild(item)
-      const isParentActive = isRouteActive(item)
+      const isParentActive = isActive || itemHasActiveChild
 
       return (
         <div key={item.title} className="space-y-0.5 py-0.5">
@@ -502,7 +556,7 @@ export function SidebarNav({ user }: SidebarProps) {
                 {item.children
                   .filter((child) => child.visible && (!child.adminOnly || (child.adminOnly && isAdmin)))
                   .map((child, index) => {
-                    const isChildActive = isPathActive(child.href)
+                    const isChildActive = isRouteActive(child.href)
                     return (
                       <motion.div
                         key={child.href}
@@ -541,7 +595,7 @@ export function SidebarNav({ user }: SidebarProps) {
 
     // Regular nav item
     if (isNested) {
-      const isItemActive = isPathActive(item.href)
+      const isItemActive = isRouteActive(item.href)
       return (
         <motion.div key={item.href} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
           <Link
@@ -606,9 +660,7 @@ export function SidebarNav({ user }: SidebarProps) {
       className="hidden md:flex flex-col h-screen border-r bg-background fixed top-0 left-0"
     >
       <div className="flex h-12 items-center px-3 border-b">
-        <Link
-          prefetch={true}
-          href="/dashboard" className="flex items-center gap-2 font-semibold">
+        <Link prefetch={true} href="/dashboard" className="flex items-center gap-2 font-semibold">
           {!isCollapsed && (
             <AnimatePresence>
               <motion.span
@@ -766,7 +818,7 @@ export function SidebarNav({ user }: SidebarProps) {
     </motion.div>
   )
 
-  // Mobile sidebar (using Sheet component)
+  // Mobile sidebar (using a Sheet component)
   const MobileSidebar = (
     <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
       <SheetTrigger asChild>
@@ -789,9 +841,7 @@ export function SidebarNav({ user }: SidebarProps) {
           className="flex flex-col h-full"
         >
           <div className="flex h-14 items-center px-4 border-b">
-            <Link
-              prefetch={true}
-              href="/dashboard" className="flex items-center gap-3 font-semibold">
+            <Link prefetch={true} href="/dashboard" className="flex items-center gap-3 font-semibold">
               <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
                 {SCHOOL_NAME}
               </motion.span>
@@ -887,7 +937,7 @@ export function SidebarNav({ user }: SidebarProps) {
       <motion.div
         className={cn("md:pt-0 pt-14")}
         animate={{
-          paddingLeft: isCollapsed ? "60px" : "220px",
+          paddingLeft: isLargeScreen ? (isCollapsed ? "60px" : "220px") : "0px",
         }}
         transition={{ duration: 0.3, ease: "easeInOut" }}
       ></motion.div>

@@ -268,6 +268,7 @@ export async function makeAdmin(employeeId: string, targetEmployeeId: string) {
     });
     await checkResponse(response);
     const data = await response.json();
+    invalidateCache("allAdmins")
     return parseServerResponse({ status: "SUCCESS", message: data.message, data: null });
   } catch (e: any) {
     console.error("Make Admin Error: ", e);
@@ -288,6 +289,7 @@ export async function removeAdmin(employeeId: string, targetEmployeeId: string) 
     });
     await checkResponse(response);
     const data = await response.json();
+    invalidateCache("allAdmins")
     return parseServerResponse({ status: "SUCCESS", message: data.message, data: null });
   } catch (e: any) {
     console.error("Remove Admin Error: ", e);
