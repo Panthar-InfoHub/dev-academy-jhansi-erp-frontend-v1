@@ -42,7 +42,7 @@ export function PaymentReceiptDialog({
 
     // Create a short receipt ID for the filename
     const shortId = payment?.id ? payment.id.substring(0, 8) : "receipt"
-    const filename = `payment-receipt-${shortId}.png`
+    const filename = `${studentName ? `${studentName}-`: "" }${payment.id}-${className}-${sectionName}.png`
 
     toPng(receiptRef.current, {
       cacheBust: true,
@@ -125,7 +125,7 @@ export function PaymentReceiptDialog({
 
         <div className="flex justify-end mt-4">
           <Button
-            variant="outline"
+            variant="default"
             onClick={handleDownload}
             disabled={isDownloading}
             className="flex items-center gap-2 text-black"

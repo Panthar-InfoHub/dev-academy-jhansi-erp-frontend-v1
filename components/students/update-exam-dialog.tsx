@@ -1,9 +1,7 @@
 "use client"
 
 import { Badge } from "@/components/ui/badge"
-
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import {
   Dialog,
@@ -27,8 +25,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import type { examEntry, examEntrySubject } from "@/types/student"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TERMS } from "@/components/students/create-exam-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { TERMS } from "@/components/students/create-exam-dialog"
 
 interface UpdateExamDialogProps {
   open: boolean
@@ -59,7 +57,7 @@ export function UpdateExamDialog({
     note: "",
     studentPassed: false,
     subjects: [] as examEntrySubject[],
-    term: ""
+    term: "",
   })
 
   // Reset form when exam changes
@@ -72,7 +70,7 @@ export function UpdateExamDialog({
         note: exam.note || "",
         studentPassed: exam.studentPassed || false,
         subjects: exam.subjects || [],
-        term: exam.term || ""
+        term: exam.term || "",
       })
     }
   }, [exam])
@@ -97,9 +95,29 @@ export function UpdateExamDialog({
   const handleSubjectMarksChange = (subjectIndex: number, field: keyof examEntrySubject, value: any) => {
     setFormData((prev) => {
       const updatedSubjects = [...prev.subjects]
+
+      // Convert empty string to 0 instead of null for marks fields
+      let processedValue: any
+      if (
+        field === "obtainedMarksTheory" ||
+        field === "obtainedMarksPractical" ||
+        field === "totalMarksTheory" ||
+        field === "totalMarksPractical"
+      ) {
+        // If value is empty string, set to 0
+        if (value === "") {
+          processedValue = 0
+        } else {
+          // Otherwise convert to number
+          processedValue = typeof value === "string" ? Number(value) : value
+        }
+      } else {
+        processedValue = typeof value === "string" ? Number(value) || null : value
+      }
+
       updatedSubjects[subjectIndex] = {
         ...updatedSubjects[subjectIndex],
-        [field]: typeof value === "string" ? Number(value) || null : value,
+        [field]: processedValue,
       }
 
       // Calculate total marks
@@ -156,6 +174,7 @@ export function UpdateExamDialog({
       // Validate subject marks
       formData.subjects.forEach((subject, index) => {
         if (subject.theoryExam) {
+          // Allow 0 as a valid value for obtained marks
           if (subject.obtainedMarksTheory === null || subject.obtainedMarksTheory === undefined) {
             errors[`subject-${index}-theory-obtained`] = `Theory marks required for ${subject.name}`
           }
@@ -168,6 +187,7 @@ export function UpdateExamDialog({
         }
 
         if (subject.practicalExam) {
+          // Allow 0 as a valid value for practical marks
           if (subject.obtainedMarksPractical === null || subject.obtainedMarksPractical === undefined) {
             errors[`subject-${index}-practical-obtained`] = `Practical marks required for ${subject.name}`
           }
@@ -215,14 +235,14 @@ export function UpdateExamDialog({
       setIsSubmitting(false)
     }
   }
-  
+
   const handleTermChange = (term: string) => {
     setFormData((prev) => ({
       ...prev,
       term: term,
     }))
   }
-  
+
   if (!exam) return null
 
   return (
@@ -241,25 +261,23 @@ export function UpdateExamDialog({
           <ScrollArea className="max-h-[60vh] pr-4 mt-4">
             <form onSubmit={handleSubmit}>
               <TabsContent value="details" className="space-y-4">
-                
                 {/*EXAM TERM*/}
                 <div className="space-y-2">
-              <Label htmlFor="term">Select Term</Label>
-              <Select value={formData.term} onValueChange={handleTermChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Term" />
-                </SelectTrigger>
-                <SelectContent defaultValue={formData.term}>
-                  {TERMS.map((term) => (
-                    <SelectItem key={term} value={term}>
-                      {term}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-                
-                
+                  <Label htmlFor="term">Select Term</Label>
+                  <Select value={formData.term} onValueChange={handleTermChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Term" />
+                    </SelectTrigger>
+                    <SelectContent defaultValue={formData.term}>
+                      {TERMS.map((term) => (
+                        <SelectItem key={term} value={term}>
+                          {term}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="examName">
                     Exam Name <span className="text-red-500">*</span>
@@ -354,7 +372,7 @@ export function UpdateExamDialog({
                               <Input
                                 id={`theory-obtained-${index}`}
                                 type="number"
-                                value={subject.obtainedMarksTheory || ""}
+                                value={subject.obtainedMarksTheory !== null ? subject.obtainedMarksTheory : ""}
                                 onChange={(e) => handleSubjectMarksChange(index, "obtainedMarksTheory", e.target.value)}
                                 min="0"
                               />
@@ -370,7 +388,7 @@ export function UpdateExamDialog({
                               <Input
                                 id={`theory-total-${index}`}
                                 type="number"
-                                value={subject.totalMarksTheory || ""}
+                                value={subject.totalMarksTheory !== null ? subject.totalMarksTheory : ""}
                                 onChange={(e) => handleSubjectMarksChange(index, "totalMarksTheory", e.target.value)}
                                 min="0"
                               />
@@ -388,7 +406,7 @@ export function UpdateExamDialog({
                               <Input
                                 id={`practical-obtained-${index}`}
                                 type="number"
-                                value={subject.obtainedMarksPractical || ""}
+                                value={subject.obtainedMarksPractical !== null ? subject.obtainedMarksPractical : ""}
                                 onChange={(e) =>
                                   handleSubjectMarksChange(index, "obtainedMarksPractical", e.target.value)
                                 }
@@ -410,7 +428,7 @@ export function UpdateExamDialog({
                               <Input
                                 id={`practical-total-${index}`}
                                 type="number"
-                                value={subject.totalMarksPractical || ""}
+                                value={subject.totalMarksPractical !== null ? subject.totalMarksPractical : ""}
                                 onChange={(e) => handleSubjectMarksChange(index, "totalMarksPractical", e.target.value)}
                                 min="0"
                               />

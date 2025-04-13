@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { getDashboardAnalytics } from "@/lib/actions/dashboard"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
+import DashboardSkeleton from "@/app/dashboard/loading";
 
 interface MonthlyRevenue {
   month: string
@@ -37,7 +38,7 @@ export default function DashboardPage() {
   }, [])
 
   if (!analyticsData) {
-    return <div>Loading...</div>
+    return <div><DashboardSkeleton /></div>
   }
 
   return (

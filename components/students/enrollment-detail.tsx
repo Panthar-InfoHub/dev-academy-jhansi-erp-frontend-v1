@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import type { completeStudentEnrollment, monthlyFeeEntry, examEntry, examEntrySubject } from "@/types/student"
+import type { completeStudentEnrollment, monthlyFeeEntry, examEntry } from "@/types/student"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -41,11 +41,10 @@ import { PayFeesDialog } from "./pay-fees-dialog"
 import { PaymentReceiptDialog } from "./payment-receipt-dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { BACKEND_SERVER_URL } from "@/env"
-import { cn } from "@/lib/utils"
 import { CreateExamDialog } from "./create-exam-dialog"
 import { UpdateExamDialog } from "./update-exam-dialog"
-import type { completeSubjectDetails } from "@/types/classroom"
-import { ResultCard } from "@/components/students/result-card";
+import { ResultDialog } from "@/components/students/result-dialog"
+import { ExamAccordion } from "@/components/students/exam-accordion"
 
 interface EnrollmentDetailProps {
   enrollment: completeStudentEnrollment
@@ -137,7 +136,7 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
     const groupedExams: Record<string, examEntry[]> = {}
 
     exams.forEach((exam) => {
-      const term = exam.note || "Uncategorized"
+      const term = exam.term || "Uncategorized"
       if (!groupedExams[term]) {
         groupedExams[term] = []
       }
@@ -201,8 +200,7 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
       success: (result) => {
         if (result?.status === "SUCCESS") {
           setExamToDelete(null)
-          // Use window.location.reload() to ensure the latest data is displayed
-          window.location.reload()
+          refreshEnrollmentData()
           return "Exam deleted successfully"
         } else {
           throw new Error(result?.message || "Failed to delete exam")
@@ -225,21 +223,13 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
 
   const handleEnrollmentUpdated = (updatedEnrollment: completeStudentEnrollment) => {
     // Update local state with the updated enrollment data
-    window.location.reload()
-    setEnrollmentData((prev) => {
-      return {
-        ...prev,
-        ...updatedEnrollment,
-      }
-    })
+    setEnrollmentData(updatedEnrollment)
     setEditDialogOpen(false)
     toast.success("Enrollment updated successfully")
-    
   }
 
   const handlePaymentSuccess = () => {
-    // Refresh the page to get the latest data
-    window.location.reload()
+    refreshEnrollmentData()
     toast.success("Payment processed successfully")
   }
 
@@ -282,20 +272,6 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
     } finally {
       setIsLoadingExams(false)
     }
-  }
-
-  const calculateObtainedTotal = (subject: examEntrySubject) => {
-    let total = 0
-
-    if (subject.theoryExam && subject.obtainedMarksTheory !== null) {
-      total += subject.obtainedMarksTheory
-    }
-
-    if (subject.practicalExam && subject.obtainedMarksPractical !== null) {
-      total += subject.obtainedMarksPractical
-    }
-
-    return total
   }
 
   return (
@@ -481,7 +457,7 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
           </CardHeader>
           <CardContent className="flex flex-col items-center gap-4">
             <Avatar className="h-24 w-24 border-2 border-muted">
-              <AvatarImage src={profileImageUrl} alt={studentName} />
+              <AvatarImage src={profileImageUrl || "/placeholder.svg"} alt={studentName} />
               <AvatarFallback>{initials}</AvatarFallback>
             </Avatar>
             <span className="font-medium text-center text-lg">{studentName}</span>
@@ -845,19 +821,29 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
             <CardHeader>
               <div className="flex justify-between items-center">
                 <CardTitle>Examination Results</CardTitle>
-                <Button
-                  variant="outline"
-                  onClick={() => setCreateExamDialogOpen(true)}
-                  disabled={!enrollmentData.isActive}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  New Exam Entry
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={refreshEnrollmentData}
+                    disabled={isLoadingExams}
+                    className="flex items-center gap-2"
+                  >
+                    <RefreshCw className={`h-4 w-4 ${isLoadingExams ? "animate-spin" : ""}`} />
+                    Refresh
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setCreateExamDialogOpen(true)}
+                    disabled={!enrollmentData.isActive}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    New Exam Entry
+                  </Button>
+                </div>
               </div>
               <CardDescription>Academic performance in theory and practical examinations</CardDescription>
             </CardHeader>
             <CardContent>
-              
               {isLoadingExams ? (
                 <div className="flex justify-center py-8">
                   <RefreshCw className="h-8 w-8 animate-spin text-primary" />
@@ -865,119 +851,13 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
               ) : examsByTerm && Object.keys(examsByTerm).length > 0 ? (
                 <div className="space-y-8">
                   {Object.entries(examsByTerm).map(([term, exams]) => (
-                    <div key={term} className="space-y-4">
-                      <h3 className="text-xl font-semibold">{term}</h3>
-                      {exams.map((exam) => (
-                        <div key={exam.examEntryId} className="border rounded-lg p-4">
-                          <div className="flex justify-between items-center mb-4">
-                            <div>
-                              <h4 className="text-lg font-medium">{exam.examName}</h4>
-                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <Calendar className="h-4 w-4" />
-                                {format(new Date(exam.examDate), "MMMM d, yyyy")}
-                                <span className="px-2 py-0.5 rounded-full bg-muted text-xs">{exam.examType}</span>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {exam.studentPassed !== undefined && (
-                                <Badge
-                                  variant={exam.studentPassed ? "default" : "destructive"}
-                                  className={
-                                    exam.studentPassed
-                                      ? "bg-green-100 text-green-800 hover:bg-green-100/80 dark:bg-green-900 dark:text-green-300"
-                                      : ""
-                                  }
-                                >
-                                  {exam.studentPassed ? "Passed" : "Failed"}
-                                </Badge>
-                              )}
-                              <Button variant="outline" size="sm" onClick={() => handleUpdateExam(exam)}>
-                                Update
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
-                                onClick={() => setExamToDelete({ examId: exam.examEntryId, examName: exam.examName })}
-                              >
-                                <Trash2 className="h-4 w-4 mr-1" />
-                                Delete
-                              </Button>
-                            </div>
-                          </div>
-
-                          {exam.subjects && exam.subjects.length > 0 && (
-                            <div className="space-y-2">
-                              <h5 className="font-medium mb-2">Subjects</h5>
-                              {exam.subjects.map((subject: completeSubjectDetails, index) => (
-                                <div key={index} className="border rounded p-3">
-                                  <div className="flex justify-between items-center mb-2">
-                                    <div className="flex items-center gap-2">
-                                      <h6 className="font-medium">{subject.name}</h6>
-                                      <span className="text-xs text-muted-foreground">Code: {subject.code}</span>
-                                    </div>
-                                    <div className="flex gap-2">
-                                      {subject.theoryExam && (
-                                        <Badge
-                                          variant="outline"
-                                          className="bg-blue-100 text-blue-800 hover:bg-blue-100/80 dark:bg-blue-900 dark:text-blue-300"
-                                        >
-                                          Theory
-                                        </Badge>
-                                      )}
-                                      {subject.practicalExam && (
-                                        <Badge
-                                          variant="outline"
-                                          className="bg-green-100 text-green-800 hover:bg-green-100/80 dark:bg-green-900 dark:text-green-300"
-                                        >
-                                          Practical
-                                        </Badge>
-                                      )}
-                                    </div>
-                                  </div>
-
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                                    {subject.theoryExam && (
-                                      <div>
-                                        <span className="text-muted-foreground">Theory: </span>
-                                        <span className="font-medium">
-                                          {subject.obtainedMarksTheory !== null ? subject.obtainedMarksTheory : "-"}/
-                                          {subject.totalMarksTheory !== null ? subject.totalMarksTheory : "-"}
-                                        </span>
-                                      </div>
-                                    )}
-
-                                    {subject.practicalExam && (
-                                      <div>
-                                        <span className="text-muted-foreground">Practical: </span>
-                                        <span className="font-medium">
-                                          {subject.obtainedMarksPractical !== null
-                                            ? subject.obtainedMarksPractical
-                                            : "-"}
-                                          /{subject.totalMarksPractical !== null ? subject.totalMarksPractical : "-"}
-                                        </span>
-                                      </div>
-                                    )}
-
-                                    <div
-                                      className={cn(
-                                        "sm:col-span-2",
-                                        (!subject.theoryExam || !subject.practicalExam) && "sm:col-span-1",
-                                      )}
-                                    >
-                                      <span className="text-muted-foreground">Total: </span>
-                                      <span className="font-medium">
-                                        {calculateObtainedTotal(subject)}/{subject.totalMarks || 0}
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
+                    <ExamAccordion
+                      key={term}
+                      term={term}
+                      exams={exams}
+                      onUpdateExam={handleUpdateExam}
+                      onDeleteExam={(examId, examName) => setExamToDelete({ examId, examName })}
+                    />
                   ))}
                 </div>
               ) : (
@@ -991,17 +871,28 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
               )}
             </CardContent>
           </Card>
+
           <Card>
-            <CardContent>
-              {isLoadingExams ? null : (
-                <ResultCard examDetails={enrollment.examDetails}
-                          subjects={enrollment.subjects}
-                          className={enrollmentData.classRoom.name}
-                          fathersName={enrollment.student.fatherName}
-                          dob={format(new Date(enrollment.student.dateOfBirth), "dd/mm/yyyy")}
-                          studentName={enrollment.student.name} sectionName={enrollment.classSection.name} />
-              )}
-            </CardContent>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <CardTitle>Result Card</CardTitle>
+                <ResultDialog
+                  examDetails={enrollmentData.examDetails}
+                  subjects={enrollmentData.subjects}
+                  className={enrollmentData.classRoom?.name || ""}
+                  fathersName={enrollmentData.student?.fatherName || ""}
+                  dob={
+                    enrollmentData.student?.dateOfBirth
+                      ? format(new Date(enrollmentData.student.dateOfBirth), "dd-MM-yyyy")
+                      : ""
+                  }
+                  studentName={enrollmentData.student?.name || ""}
+                  sectionName={enrollmentData.classSection?.name || ""}
+                  buttonText="View Full Result Card"
+                />
+              </div>
+              <CardDescription>View and download the student's result card</CardDescription>
+            </CardHeader>
           </Card>
         </TabsContent>
       </Tabs>
