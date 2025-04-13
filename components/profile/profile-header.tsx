@@ -25,8 +25,9 @@ export function ProfileHeader({ employee }: ProfileHeaderProps) {
   const profileImageUrl = `${BACKEND_SERVER_URL}/v1/employee/${employee.id}/profileImg`
 
   const copyIdToClipboard = () => {
-    navigator.clipboard.writeText(employee.id)
-    toast.success("Employee ID copied to clipboard")
+    navigator.clipboard.writeText(employee.id).then(() => {
+      toast.success("Employee ID copied to clipboard")
+    })
   }
 
   return (

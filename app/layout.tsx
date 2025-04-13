@@ -27,7 +27,7 @@ export default async function RootLayout({
         <SessionProvider>
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
             {children}
-            <Toaster position="top-right" />
+            <Toaster position="bottom-right" />
           </ThemeProvider>
         </SessionProvider>
       </body>

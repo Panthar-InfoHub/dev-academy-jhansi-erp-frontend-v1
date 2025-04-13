@@ -16,13 +16,15 @@ export default async function DashboardLayout({
   }
 
   const user = session.user as customUser
-
-  // If user is not an admin, redirect them to their profile page
-  if (!user.isAdmin && user.id) {
-    // Teachers and other employees should only see their profile
-    redirect(`/dashboard/profile`)
+  
+  if (!user) {
+    redirect("/")
   }
-
+  
+  if (!user.isAdmin) {
+    redirect("/dashboard/profile")
+  }
+  
   return (
     <div className="flex min-h-screen">
       <SidebarNav user={user} />

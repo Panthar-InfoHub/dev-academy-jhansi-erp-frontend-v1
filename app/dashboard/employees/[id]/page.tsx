@@ -25,8 +25,12 @@ export default async function EmployeeDetailPage({ params }: EmployeeDetailPageP
   if (!user || !user.isAdmin) {
     redirect("/dashboard")
   }
-
+  
   const employeeId = (await params).id
+  
+  if (user.id !== employeeId && !user.isAdmin) { redirect("/dashboard/profile")}
+
+
   const employeeData = await fetchEmployeeDetails(employeeId)
 
   if (!employeeData) {

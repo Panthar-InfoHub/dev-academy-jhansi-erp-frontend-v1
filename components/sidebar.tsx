@@ -27,6 +27,7 @@ import {
   DollarSign,
   Receipt,
   Clock,
+  Calendar,
 } from "lucide-react"
 import type { customUser } from "@/auth"
 import { handleSignOut } from "@/lib/actions/loginActions"
@@ -127,7 +128,7 @@ export function SidebarNav({ user }: SidebarProps) {
       href: "/dashboard",
       icon: BarChart3,
       title: "Dashboard",
-      visible: isAdmin, // Only admins see the dashboard
+      visible: true, // Make visible to all users, but content will be controlled elsewhere
     },
     {
       href: "/dashboard/students",
@@ -153,33 +154,34 @@ export function SidebarNav({ user }: SidebarProps) {
       href: "/dashboard/employees",
       icon: Users,
       title: "Employees",
-      visible: isAdmin,
-      adminOnly: true,
+      visible: true, // Make visible to all users
       children: [
         {
           href: "/dashboard/employees",
           icon: ClipboardList,
           title: "Employee Management",
           visible: isAdmin,
+          adminOnly: true,
         },
         {
           href: "/dashboard/employees/attendance-report",
-          icon: ClipboardList,
+          icon: Calendar, // Changed from ClipboardList to Calendar
           title: "Attendance Report",
           visible: isAdmin,
+          adminOnly: true,
         },
         {
           href: "/dashboard/employee/check-in", // Add check-in link
           icon: Clock,
           title: "Check In",
-          visible: true, // Only visible to non-admins (employees)
+          visible: true, // Visible to all employees
         },
       ],
     },
     {
       href: "/dashboard/class",
       icon: School,
-      title: "Class Management", // Renamed from "Classes" to "Class Management"
+      title: "Class Management",
       visible: isAdmin || isTeacher,
     },
     {
@@ -194,12 +196,14 @@ export function SidebarNav({ user }: SidebarProps) {
       icon: DollarSign,
       title: "Payments",
       visible: isAdmin,
+      adminOnly: true,
       children: [
         {
           href: "/dashboard/payments",
           icon: Receipt,
           title: "Manage Payments",
           visible: isAdmin,
+          adminOnly: true,
         },
       ],
     },
@@ -208,12 +212,14 @@ export function SidebarNav({ user }: SidebarProps) {
       icon: Settings,
       title: "Admin",
       visible: isAdmin,
+      adminOnly: true,
       children: [
         {
           href: "/dashboard/admin/manage",
           icon: Users,
           title: "Manage",
           visible: isAdmin,
+          adminOnly: true,
         },
       ],
     },
@@ -260,11 +266,66 @@ export function SidebarNav({ user }: SidebarProps) {
     if (isMobileMenuOpen) setIsMobileMenuOpen(false)
   }
 
+  // Helper function to check if a route or any of its children are active
+  const isRouteActive = (item: NavItem): boolean => {
+    // Check if the current path exactly matches this route
+    if (pathname === item.href) {
+      return true
+    }
+
+    // Special case for employees section - only for collapsed sidebar
+    if (
+      isCollapsed &&
+      item.title === "Employees" &&
+      (pathname.startsWith("/dashboard/employees/") || pathname.startsWith("/dashboard/employee/"))
+    ) {
+      return true
+    }
+
+    // Check if any child routes are active - only for collapsed sidebar
+    if (isCollapsed && item.children) {
+      return item.children.some(
+        (child) => pathname === child.href || (child.href !== "/dashboard" && pathname.startsWith(child.href)),
+      )
+    }
+
+    return false
+  }
+
+  // Helper function to find active child of a parent route
+  const findActiveChild = (item: NavItem): NavItem | null => {
+    if (!item.children) return null
+
+    return (
+      item.children.find(
+        (child) => pathname === child.href || (child.href !== "/dashboard" && pathname.startsWith(child.href)),
+      ) || null
+    )
+  }
+
+  // Helper function to check if a specific path is active
+  const isPathActive = (path: string): boolean => {
+    return pathname === path || (path !== "/dashboard" && pathname.startsWith(path))
+  }
+
   const renderNavItem = (item: NavItem, isNested = false, forMobile = false) => {
     // Skip items that should not be visible to this user
     if (!item.visible || (item.adminOnly && !isAdmin)) {
       return null
     }
+
+    // Different active state logic based on sidebar state
+    const hasActiveChild = item.children?.some(
+      (child) => pathname === child.href || (child.href !== "/dashboard" && pathname.startsWith(child.href)),
+    )
+
+    // For expanded sidebar: main entry is active only if exact match
+    // For collapsed sidebar: main entry is active if it or any child is active
+    const isActive = isCollapsed && !forMobile ? isRouteActive(item) : pathname === item.href
+
+    console.log(
+      `Checking route: ${item.title}, href: ${item.href}, pathname: ${pathname}, isActive: ${isActive}, hasActiveChild: ${hasActiveChild}`,
+    )
 
     // If the item has children, render a collapsible
     if (item.children && item.children.length > 0) {
@@ -279,80 +340,145 @@ export function SidebarNav({ user }: SidebarProps) {
             key={item.href}
             href={item.href}
             className={cn(
-              "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
-              pathname === item.href ? "bg-accent text-accent-foreground" : "transparent",
+              "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
+              isActive ? "bg-accent text-accent-foreground" : "transparent",
               isCollapsed && !forMobile && "justify-center px-0",
-              isNested && "pl-8", // Increased left padding for nested items
+              isNested && "pl-6", // Reduced padding for nested items
             )}
             onClick={() => isMobileMenuOpen && setIsMobileMenuOpen(false)}
           >
-            <item.icon className="h-4 w-4" />
+            <item.icon className={cn("h-4 w-4", isActive && "h-[18px] w-[18px]")} />
             {(!isCollapsed || forMobile) && <span>{item.title}</span>}
           </Link>
         )
       }
 
-      return (
-        <div key={item.title} className="space-y-1 py-1">
-          <Collapsible
-            open={openGroups[item.title]}
-            onOpenChange={() => toggleGroup(item.title)}
-            className={cn(isCollapsed && !forMobile && "hidden")}
-          >
-            <div className="flex items-center">
-              <Link
-                href={item.children[0].href}
-                className={cn(
-                  "flex flex-1 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
-                  pathname === item.href ? "bg-accent text-accent-foreground" : "transparent",
-                )}
-                onClick={() => isMobileMenuOpen && setIsMobileMenuOpen(false)}
-              >
-                <item.icon className="h-4 w-4" />
-                <span>{item.title}</span>
-              </Link>
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  {openGroups[item.title] ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                </Button>
-              </CollapsibleTrigger>
-            </div>
-            <CollapsibleContent className="mt-1 space-y-1">
-              {item.children.map((child) => renderNavItem(child, true, forMobile))}
-            </CollapsibleContent>
-          </Collapsible>
+      // For expanded sidebar
+      if (!isCollapsed || forMobile) {
+        return (
+          <div key={item.title} className="space-y-0.5 py-0.5">
+            <Collapsible open={openGroups[item.title] || hasActiveChild} onOpenChange={() => toggleGroup(item.title)}>
+              <div className="flex items-center">
+                <Link
+                  href={item.children[0].href}
+                  className={cn(
+                    "flex flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
+                    isActive ? "bg-accent text-accent-foreground" : "transparent",
+                  )}
+                  onClick={() => isMobileMenuOpen && setIsMobileMenuOpen(false)}
+                >
+                  <item.icon className={cn("h-4 w-4", isActive && "h-[18px] w-[18px]")} />
+                  <span>{item.title}</span>
+                </Link>
+                <CollapsibleTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={cn(
+                      "h-7 w-7 p-0",
+                      (isActive || hasActiveChild) && "hidden", // Hide when active or has active child
+                    )}
+                  >
+                    {openGroups[item.title] ? (
+                      <ChevronDown className="h-3 w-3" />
+                    ) : (
+                      <ChevronRight className="h-3 w-3" />
+                    )}
+                  </Button>
+                </CollapsibleTrigger>
+              </div>
+              <CollapsibleContent className="mt-0.5 space-y-0.5">
+                {item.children.map((child) => renderNavItem(child, true, forMobile))}
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
+        )
+      }
 
-          {/* When sidebar is collapsed, show only the icon */}
-          {isCollapsed && !forMobile && (
-            <Link
-              href={item.children[0].href}
-              className={cn(
-                "flex justify-center rounded-md px-0 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
-                pathname === item.href ? "bg-accent text-accent-foreground" : "transparent",
-              )}
-              onClick={() => isMobileMenuOpen && setIsMobileMenuOpen(false)}
-            >
-              <item.icon className="h-4 w-4" />
-            </Link>
+      // For collapsed sidebar - show parent and all children when parent is active
+      const activeChild = findActiveChild(item)
+      const isParentActive = isRouteActive(item)
+
+      return (
+        <div key={item.title} className="space-y-0.5 py-0.5">
+          {/* Main parent icon */}
+          <Link
+            href={item.children[0].href}
+            className={cn(
+              "flex justify-center rounded-md px-0 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
+              isParentActive ? "bg-accent text-accent-foreground" : "transparent",
+            )}
+            onClick={() => isMobileMenuOpen && setIsMobileMenuOpen(false)}
+          >
+            <item.icon className={cn("h-4 w-4", isParentActive && "h-[18px] w-[18px] text-accent-foreground")} />
+          </Link>
+
+          {/* Show all child icons when parent is active */}
+          {isParentActive && (
+            <div className="space-y-0.5 mt-0.5">
+              {item.children
+                .filter((child) => child.visible && (!child.adminOnly || (child.adminOnly && isAdmin)))
+                .map((child, index) => {
+                  const isChildActive = isPathActive(child.href)
+                  return (
+                    <Link
+                      key={child.href}
+                      href={child.href}
+                      className={cn(
+                        "flex justify-center rounded-md px-0 py-1.5 text-sm font-medium",
+                        isChildActive
+                          ? "bg-accent/80 text-accent-foreground"
+                          : "bg-muted/40 hover:bg-accent/50 hover:text-accent-foreground",
+                      )}
+                    >
+                      <child.icon
+                        className={cn(
+                          "h-4 w-4",
+                          isChildActive ? "h-[18px] w-[18px] text-accent-foreground" : "text-muted-foreground",
+                        )}
+                      />
+                    </Link>
+                  )
+                })}
+            </div>
           )}
         </div>
       )
     }
 
     // Regular nav item
+    if (isNested) {
+      const isItemActive = isPathActive(item.href)
+      return (
+        <Link
+          key={item.href}
+          href={item.href}
+          className={cn(
+            "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
+            isItemActive ? "bg-accent text-accent-foreground" : "transparent",
+            isCollapsed && !forMobile && "justify-center px-0",
+            isCollapsed && !forMobile ? "bg-muted/40" : "pl-6", // Use background color instead of border
+          )}
+          onClick={() => isMobileMenuOpen && setIsMobileMenuOpen(false)}
+        >
+          <item.icon className={cn("h-4 w-4", isItemActive && "h-[18px] w-[18px] text-accent-foreground")} />
+          {(!isCollapsed || forMobile) && <span>{item.title}</span>}
+        </Link>
+      )
+    }
+
     return (
       <Link
         key={item.href}
         href={item.href}
         className={cn(
-          "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
-          pathname === item.href ? "bg-accent text-accent-foreground" : "transparent",
+          "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
+          isActive ? "bg-accent text-accent-foreground" : "transparent",
           isCollapsed && !forMobile && "justify-center px-0",
-          isNested && "pl-8", // Increased left padding for nested items
         )}
         onClick={() => isMobileMenuOpen && setIsMobileMenuOpen(false)}
       >
-        <item.icon className="h-4 w-4" />
+        <item.icon className={cn("h-4 w-4", isActive && "h-[18px] w-[18px] text-accent-foreground")} />
         {(!isCollapsed || forMobile) && <span>{item.title}</span>}
       </Link>
     )
@@ -363,45 +489,45 @@ export function SidebarNav({ user }: SidebarProps) {
     <div
       className={cn(
         "hidden md:flex flex-col h-screen border-r bg-background transition-all duration-300 fixed top-0 left-0",
-        isCollapsed ? "w-[70px]" : "w-[250px]",
+        isCollapsed ? "w-[60px]" : "w-[220px]", // Reduced width
       )}
     >
-      <div className="flex h-14 items-center px-4 border-b">
-        <Link href="/dashboard" className="flex items-center gap-3 font-semibold">
-          {/* <School className="h-6 w-6" /> */}
-          {!isCollapsed && <span>{SCHOOL_NAME}</span>}
+      <div className="flex h-12 items-center px-3 border-b">
+        <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
+          {!isCollapsed && <span className="text-sm">{SCHOOL_NAME}</span>} {/* Smaller text */}
         </Link>
         <div className="ml-auto">
           <Button
             variant="ghost"
-            size="icon"
+            size="sm" // Smaller button
             onClick={toggleSidebar}
             aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className="h-7 w-7 p-0" // Smaller button
           >
             {isCollapsed ? <Menu className="h-4 w-4" /> : <X className="h-4 w-4" />}
           </Button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto py-4">
-        <nav className="grid gap-1 px-2">
+      <div className="flex-1 overflow-auto py-2">
+        <nav className="grid gap-0.5 px-1.5">
           {routes.map((route) => {
             return renderNavItem(route)
           })}
         </nav>
       </div>
 
-      <div className="border-t p-4">
+      <div className="border-t p-3">
         {mounted && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="outline"
                 size="sm"
-                className={cn("w-full", isCollapsed ? "justify-center px-0" : "justify-start")}
+                className={cn("w-full h-7", isCollapsed ? "justify-center px-0" : "justify-start")} // Smaller height
               >
                 <Settings className="h-4 w-4" />
-                {!isCollapsed && <span className="ml-2">Theme</span>}
+                {!isCollapsed && <span className="ml-2 text-xs">Theme</span>} {/* Smaller text */}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -420,30 +546,30 @@ export function SidebarNav({ user }: SidebarProps) {
             </DropdownMenuContent>
           </DropdownMenu>
         )}
-
         <div
           onClick={() => router.push("/dashboard/profile")}
-          className={cn("flex items-center gap-3 mt-4 cursor-pointer", isCollapsed && "justify-center")}>
-          <Avatar className="h-9 w-9">
+          className={cn("flex items-center gap-2 mt-3 cursor-pointer", isCollapsed && "justify-center")}
+        >
+          <Avatar className="h-8 w-8">
             <AvatarImage src={profileImageUrl || "/placeholder.svg"} alt={user.name} />
             <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>
           {!isCollapsed && (
             <div className="flex flex-col overflow-hidden">
-              <span className="font-medium truncate">{user.name}</span>
-              <span className="text-sm text-muted-foreground truncate">{user.email}</span>
+              <span className="font-medium truncate text-xs">{user.name}</span> {/* Smaller text */}
+              <span className="text-xs text-muted-foreground truncate">{user.email}</span> {/* Smaller text */}
             </div>
           )}
         </div>
-
-        <form action={handleSignOut} className="mt-4">
+        <form action={handleSignOut} className="mt-3">
           <Button
             variant="outline"
-            className={cn("w-full", isCollapsed ? "justify-center px-0" : "justify-start")}
+            size="sm"
+            className={cn("w-full h-7", isCollapsed ? "justify-center px-0" : "justify-start")} // Smaller height
             type="submit"
           >
             <LogOut className="h-4 w-4" />
-            {!isCollapsed && <span className="ml-2">Log out</span>}
+            {!isCollapsed && <span className="ml-2 text-xs">Log out</span>} {/* Smaller text */}
           </Button>
         </form>
       </div>
@@ -470,7 +596,6 @@ export function SidebarNav({ user }: SidebarProps) {
         <div className="flex flex-col h-full">
           <div className="flex h-14 items-center px-4 border-b">
             <Link href="/dashboard" className="flex items-center gap-3 font-semibold">
-              {/* <School className="h-6 w-6" /> */}
               <span>{SCHOOL_NAME}</span>
             </Link>
           </div>
@@ -538,7 +663,7 @@ export function SidebarNav({ user }: SidebarProps) {
     <>
       {DesktopSidebar}
       {MobileSidebar}
-      <div className={cn("md:pl-[250px] pt-14 md:pt-0", isCollapsed && "md:pl-[70px]")}></div>
+      <div className={cn("md:pl-[220px] pt-14 md:pt-0", isCollapsed && "md:pl-[60px]")}></div>
     </>
   )
 }

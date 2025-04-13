@@ -11,13 +11,12 @@ export default async function Home() {
 
     if (user.isAdmin) {
       redirect(`/dashboard`)
+    } else {
+      redirect(`/dashboard/profile`)
     }
-
-    if (user.isTeacher) {
-      redirect(`/dashboard/employee/${user.id}`)
-    }
-
-    redirect("/dashboard")
+    
+    
+    
   }
 
   return (
