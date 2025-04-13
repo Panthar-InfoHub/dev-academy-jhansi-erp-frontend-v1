@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AlertTriangle, Calendar, CheckCircle, Clock, Copy, Loader2 } from "lucide-react"
@@ -44,59 +44,10 @@ export default function CheckInHandler({ employeeId }: { employeeId: string }) {
   const router = useRouter()
   const [attendanceData, setAttendanceData] = useState<AttendanceDetailEntry | null>(null)
   const [noAttendanceEntry, setNoAttendanceEntry] = useState(false)
-
-  const checkLocationPermission = useCallback(async () => {
-    console.log("Checking location permission")
-    if (!navigator.geolocation) {
-      console.log("Geolocation is not supported by this browser.")
-      toast.error("Geolocation is not supported by this browser.")
-      return
-    }
-
-    try {
-      const permissionStatus = await navigator.permissions.query({ name: "geolocation" })
-      setHasLocationPermission(permissionStatus.state === "granted")
-      console.log("Location permission status:", permissionStatus.state)
-
-      if (permissionStatus.state === "granted") {
-        console.log("Location permission already granted")
-        getLocation()
-      } else if (permissionStatus.state === "prompt") {
-        console.log("Requesting location permission")
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            console.log("Location permission granted")
-            setHasLocationPermission(true)
-            setUserCoordinates({
-              latitude: position.coords.latitude,
-              longitude: position.coords.longitude,
-            })
-          },
-          (error) => {
-            console.error("Error getting location:", error)
-            toast.error("Location permission required to check in.")
-            setHasLocationPermission(false)
-          },
-          { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 },
-        )
-      } else {
-        console.log("Location permission denied")
-        setHasLocationPermission(false)
-        toast.error("Location permission required to check in.")
-      }
-    } catch (error) {
-      console.error("Error checking location permission:", error)
-      toast.error("Failed to check location permission.")
-    }
-  }, [])
-
-  const getLocation = useCallback(() => {
-    console.log("Attempting to get location")
-    if (!hasLocationPermission) {
-      console.log("Location permission not granted")
-      return
-    }
-
+  const [permissionChecked, setPermissionChecked] = useState(false)
+  
+  function requestLocation() {
+    console.log("Requesting location coordinates")
     navigator.geolocation.getCurrentPosition(
       (position) => {
         console.log("Location retrieved successfully", {
@@ -107,16 +58,69 @@ export default function CheckInHandler({ employeeId }: { employeeId: string }) {
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
         })
+        // Update permission state when we successfully get coordinates
+        setHasLocationPermission(true)
       },
       (error) => {
-        console.error("Error getting location:", error)
-        toast.error("Failed to get location. Please try again.")
+        console.error("Error obtaining location:", error)
+        toast.error("Unable to retrieve location. Please enable location services.")
+        setHasLocationPermission(false)
       },
-      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 },
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
     )
-  }, [hasLocationPermission])
+  }
 
-  const fetchAttendanceId = useCallback(async () => {
+  const checkLocationPermission = async () => {
+    // Don't check again if we've already done it
+    if (permissionChecked) return
+    
+    console.log("Checking location permission")
+    if (!navigator.geolocation) {
+      console.log("Geolocation is not supported by this browser.")
+      toast.error("Geolocation is not supported by this browser.")
+      return
+    }
+
+    try {
+      const permissionStatus = await navigator.permissions.query({ name: "geolocation" })
+      console.log("Location permission status:", permissionStatus.state)
+      setPermissionChecked(true)
+
+      // Handle all permission states
+      if (permissionStatus.state === "granted") {
+        console.log("Location permission already granted")
+        setHasLocationPermission(true)
+        requestLocation() // Always request location if granted
+      }
+      else if (permissionStatus.state === "prompt") {
+        console.log("Location permission will be requested")
+        // For prompt, we directly request location which will trigger the browser's permission prompt
+        requestLocation()
+      }
+      else {
+        console.log("Location permission denied")
+        setHasLocationPermission(false)
+        toast.error("Location permission required to check in.")
+      }
+      
+      // Set up a listener for permission changes
+      permissionStatus.onchange = () => {
+        console.log("Permission state changed to:", permissionStatus.state)
+        if (permissionStatus.state === "granted") {
+          setHasLocationPermission(true)
+          requestLocation()
+        } else {
+          setHasLocationPermission(false)
+        }
+      }
+    } catch (error) {
+      console.error("Error checking location permission:", error)
+      toast.error("Failed to check location permission.")
+    }
+  }
+
+  
+  const fetchAttendanceId = async () => {
     if (!employeeId) {
       console.log("Employee ID not found")
       toast.error("Employee ID not found. Please contact administrator.")
@@ -162,16 +166,18 @@ export default function CheckInHandler({ employeeId }: { employeeId: string }) {
         toast.error("Attendance details not found. Please wait for system to sync or contact administrator.")
       }
     } catch (error) {
+      setNoAttendanceEntry(true)
       console.error("Error fetching attendance:", error)
       toast.error("Failed to fetch attendance details. Please try again.")
     } finally {
       setIsLoading(false)
     }
-  }, [employeeId])
-
+  }
+  
   useEffect(() => {
     checkLocationPermission()
-  }, [checkLocationPermission])
+  }, [])
+  
 
   useEffect(() => {
     if (userCoordinates && CHECK_IN_LAT && CHECK_IN_LNG) {
@@ -197,7 +203,7 @@ export default function CheckInHandler({ employeeId }: { employeeId: string }) {
     if (employeeId) {
       fetchAttendanceId()
     }
-  }, [employeeId, fetchAttendanceId])
+  }, [employeeId])
 
   const handleCheckIn = async () => {
     if (!employeeId) {
