@@ -10,8 +10,8 @@ export default async function EmployeeDetailPage() {
   const session = await auth()
   const user = session?.user as customUser
 
-  if (!user || !user.isAdmin) {
-    redirect("/dashboard")
+  if (!user) {
+    redirect("/")
   }
   
   return (

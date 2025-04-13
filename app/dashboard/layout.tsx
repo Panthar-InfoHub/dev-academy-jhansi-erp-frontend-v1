@@ -17,14 +17,6 @@ export default async function DashboardLayout({
 
   const user = session.user as customUser
   
-  if (!user) {
-    redirect("/")
-  }
-  
-  if (!user.isAdmin) {
-    redirect("/dashboard/profile")
-  }
-  
   return (
     <div className="flex min-h-screen">
       <SidebarNav user={user} />
