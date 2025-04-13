@@ -21,8 +21,9 @@ import {
   Clock,
   Plus,
   RefreshCw,
+  RotateCcw,
 } from "lucide-react"
-import { deleteEnrollment, getEnrollmentDetails, deleteExamEntry } from "@/lib/actions/student"
+import { deleteEnrollment, getEnrollmentDetails, deleteExamEntry, resetEnrollment } from "@/lib/actions/student"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,6 +46,7 @@ import { CreateExamDialog } from "./create-exam-dialog"
 import { UpdateExamDialog } from "./update-exam-dialog"
 import { ResultDialog } from "@/components/students/result-dialog"
 import { ExamAccordion } from "@/components/students/exam-accordion"
+import { Input } from "@/components/ui/input"
 
 interface EnrollmentDetailProps {
   enrollment: completeStudentEnrollment
@@ -75,6 +77,9 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
   const [examsByTerm, setExamsByTerm] = useState<Record<string, examEntry[]>>({})
   const [examToDelete, setExamToDelete] = useState<{ examId: string; examName: string } | null>(null)
   const [isDeletingExam, setIsDeletingExam] = useState(false)
+  const [resetDialogOpen, setResetDialogOpen] = useState(false)
+  const [isResetting, setIsResetting] = useState(false)
+  const [newFeeAmount, setNewFeeAmount] = useState<number | undefined>(undefined)
 
   // Get student initials for avatar
   const studentName = enrollmentData.student?.name || "Student"
@@ -188,6 +193,32 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
     })
   }
 
+  const handleResetEnrollment = async () => {
+    console.log("Resetting enrollment:", enrollmentData.id, "with new fee amount:", newFeeAmount)
+    setIsResetting(true)
+
+    toast.promise(resetEnrollment(studentId, enrollmentData.id, newFeeAmount), {
+      loading: "Resetting enrollment...",
+      success: (result) => {
+        if (result?.status === "SUCCESS") {
+          // Reload the page to get the latest data
+          window.location.reload()
+          return result.message || "Enrollment reset successfully"
+        } else {
+          throw new Error(result?.message || "Failed to reset enrollment")
+        }
+      },
+      error: (error) => {
+        console.error("Error resetting enrollment:", error)
+        return error.message || "An error occurred while resetting enrollment"
+      },
+      finally: () => {
+        setIsResetting(false)
+        setResetDialogOpen(false)
+      },
+    })
+  }
+
   const handleDeleteExam = async () => {
     if (!examToDelete) return
 
@@ -286,6 +317,14 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
           <Button variant="outline" onClick={() => setEditDialogOpen(true)}>
             <Pencil className="mr-2 h-4 w-4" />
             Edit Enrollment
+          </Button>
+          <Button
+            variant="outline"
+            className="border-amber-200 text-amber-600 hover:bg-amber-50 hover:text-amber-700"
+            onClick={() => setResetDialogOpen(true)}
+          >
+            <RotateCcw className="mr-2 h-4 w-4" />
+            Reset Enrollment
           </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
@@ -937,6 +976,54 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
         exam={selectedExam}
         onSuccess={refreshEnrollmentData}
       />
+
+      {/* Reset Enrollment Dialog */}
+      <AlertDialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset Enrollment</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will clear all fee details for this enrollment, allowing you to start over from scratch. All payment
+              history and monthly fee entries will be removed. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <div className="space-y-2">
+              <label htmlFor="newFeeAmount" className="text-sm font-medium">
+                New Monthly Fee Amount (Optional)
+              </label>
+              <Input
+                id="newFeeAmount"
+                type="number"
+                placeholder="Enter new fee amount"
+                value={newFeeAmount === undefined ? "" : newFeeAmount}
+                onChange={(e) => setNewFeeAmount(e.target.value ? Number(e.target.value) : undefined)}
+                className="w-full"
+              />
+              <p className="text-xs text-muted-foreground">
+                Leave blank to keep the current monthly fee amount (₹{enrollmentData.monthlyFee.toLocaleString()})
+              </p>
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isResetting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleResetEnrollment}
+              disabled={isResetting}
+              className="bg-amber-600 hover:bg-amber-700"
+            >
+              {isResetting ? (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  Resetting...
+                </>
+              ) : (
+                "Reset Enrollment"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Delete Exam Confirmation Dialog */}
       <AlertDialog open={!!examToDelete} onOpenChange={(open) => !open && setExamToDelete(null)}>

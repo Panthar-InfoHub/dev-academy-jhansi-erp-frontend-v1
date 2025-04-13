@@ -145,16 +145,9 @@ export function ResultCard({
   return (
     <>
       <div className="mt-4 mb-6 flex justify-self-start">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger>
-              <Button onClick={handleDownload} className="bg-blue-800 hover:bg-blue-900 text-white">
+         <Button onClick={handleDownload} className="bg-blue-800 hover:bg-blue-900 text-white">
                 Download Result Card
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent className="bg-blue-800 text-white">Download result card as an image</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+         </Button>
       </div>
       <Card className="w-full border-0 shadow-none bg-white dark:bg-white">
         <CardContent ref={resultCardRef} className="p-0">

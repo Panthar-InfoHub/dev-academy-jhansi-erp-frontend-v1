@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { ResultCard } from "./result-card"
 import type { examEntry, examEntrySubject } from "@/types/student"
 import { FileText } from "lucide-react"
@@ -40,6 +40,7 @@ export function ResultDialog({
           {buttonText}
         </Button>
       </DialogTrigger>
+      <DialogTitle hidden={true}>Result Card</DialogTitle>
       <DialogContent className="max-w-[90vw] md:max-w-[80vw] lg:max-w-[1100px] max-h-[90vh] overflow-y-auto bg-white dark:bg-white">
         <ResultCard
           examDetails={examDetails}

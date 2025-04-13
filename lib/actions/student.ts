@@ -2,6 +2,7 @@
 
 import { BACKEND_SERVER_URL } from "@/env";
 import { parseServerResponse, serverResponseParserArguments } from "@/lib/utils";
+
 import {
 	completeStudentDetails,
 	completeStudentEnrollment,
@@ -410,24 +411,38 @@ export async function createStudentEnrollment(studentId: string, data: newEnroll
 
 //Completed
 export async function getEnrollmentDetails(studentId: string, enrollmentId: string) {
-
 	console.log("Fetching student enrollment with id: ", enrollmentId)
-
+	
+	// Create a unique cache key for this enrollment
+	const cacheKey = `student-enrollment-${studentId}-${enrollmentId}`
+	
+	// Check if we have this data in the cache
+	const cachedData = getCache<serverResponseParserArguments<completeStudentEnrollment>>(cacheKey)
+	if (cachedData) {
+		console.debug("Returning cached enrollment data for key:", cacheKey)
+		return cachedData
+	}
+	
 	try {
-
 		const response = await axios.get(
 			`${BACKEND_SERVER_URL}/v1/student/${studentId}/enrollment/${enrollmentId}`
 		)
-
+		
 		console.debug("Successfully fetched student enrollment with id: ", enrollmentId, "with response: ", response.data)
-
+		
 		const enrollmentData: completeStudentEnrollment = response.data.enrollmentData
-
-		return parseServerResponse<completeStudentEnrollment>({
+		
+		const parsedResponse = parseServerResponse<completeStudentEnrollment>({
 			status: "SUCCESS",
 			message: "Student Enrollment Fetched Successfully",
 			data: enrollmentData
 		})
+		
+		// Cache the enrollment data for 5 minutes (300 seconds)
+		// You can adjust the TTL based on how frequently this data changes
+		setCache(cacheKey, parsedResponse, 300)
+		
+		return parsedResponse
 	}
 	catch (e) {
 		console.error(`Failed to get student enrollment with id : ${enrollmentId}`, JSON.stringify(e))
@@ -438,17 +453,24 @@ export async function getEnrollmentDetails(studentId: string, enrollmentId: stri
 				const responseStatusCode = e.response ? e.response.status : null
 				const responseBody = e.response ? e.response.data : null
 				console.error("Error details : ", JSON.stringify({ errStatus, responseStatusCode, responseBody }))
-				return parseServerResponse<null>({
+				
+				const errorResponse = parseServerResponse<null>({
 					status: "ERROR",
-					message: responseBody.error,
+					message: responseBody?.error || "Failed to fetch enrollment details",
 					data: null
 				})
+				
+				return errorResponse
 			}
 		}
+		
+		return parseServerResponse<null>({
+			status: "ERROR",
+			message: "An unexpected error occurred while fetching enrollment details",
+			data: null
+		})
 	}
-
 }
-
 //Completed
 export async function updateEnrollment(studentId: string, enrollmentId: string, data: updateEnrollmentBody) {
 
@@ -571,6 +593,7 @@ export async function payStudentFee(studentId: string, enrollmentId: string, dat
 		)
 
 		console.log("Successfully paid student fee for enrollment with id: ", enrollmentId, "with response: ", response.data)
+		invalidateCache(`student-enrollment-${studentId}-${enrollmentId}`)
 		revalidatePath(`/dashboard/student/${studentId}/enrollment/${enrollmentId}`)
 		return parseServerResponse<feePayment>({
 			status: "SUCCESS",
@@ -847,7 +870,7 @@ export async function resetEnrollment(
 	try {
 		const url = `${BACKEND_SERVER_URL}/v1/student/${studentId}/enrollment/${enrollmentId}/reset`;
 		const response = await fetch(url, {
-			method: "POST", // assuming reset is done via POST method
+			method: "PUT", // assuming reset is done via POST method
 			headers: {
 				"Content-Type": "application/json",
 			},
@@ -871,7 +894,8 @@ export async function resetEnrollment(
 		// Here we assume the enrollment details have been cached using a key of the format:
 		// `student-enrollment-${studentId}-${enrollmentId}`
 		invalidateCache(`student-enrollment-${studentId}-${enrollmentId}`);
-
+		revalidatePath(`/dashboard/student/${studentId}/enrollment/${enrollmentId}`);
+		
 		return parseServerResponse<null>({
 			status: "SUCCESS",
 			message: "Enrollment has been reset successfully",

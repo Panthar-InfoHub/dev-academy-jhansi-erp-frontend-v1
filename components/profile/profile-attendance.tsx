@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Calendar } from "@/components/ui/calendar"
 import { Button } from "@/components/ui/button"
@@ -10,79 +10,77 @@ import { format, subMonths, startOfDay, endOfDay } from "date-fns"
 import type { AttendanceDetailEntry } from "@/types/employee.d"
 import { Badge } from "@/components/ui/badge"
 import { Loader2, RefreshCw } from "lucide-react"
+import { getCache, setCache } from "@/lib/cache"
 
 interface ProfileAttendanceProps {
   employeeId: string
 }
-
-// Cache storage
-interface CacheEntry {
-  data: AttendanceDetailEntry[]
-  timestamp: number
-}
-
-const attendanceCache = new Map<string, CacheEntry>()
-const CACHE_DURATION = 5000 // 5 seconds in milliseconds
 
 export function ProfileAttendance({ employeeId }: ProfileAttendanceProps) {
   const [startDate, setStartDate] = useState<Date>(subMonths(new Date(), 1))
   const [endDate, setEndDate] = useState<Date>(new Date())
   const [isLoading, setIsLoading] = useState(false)
   const [attendanceData, setAttendanceData] = useState<AttendanceDetailEntry[]>([])
+  const [initialized, setInitialized] = useState(false)
+  
+  const initialFetchRef = useRef(false);
 
+  
   // Create a cache key based on employee ID and date range
   const getCacheKey = (empId: string, start: Date, end: Date) => {
-    return `${empId}_${format(start, "yyyy-MM-dd")}_${format(end, "yyyy-MM-dd")}`
+    return `attendance_${empId}_${format(start, "yyyy-MM-dd")}_${format(end, "yyyy-MM-dd")}`
   }
 
-  const fetchAttendance = useCallback(
-    async (forceRefresh = false) => {
-      setIsLoading(true)
+  const fetchAttendance = async (forceRefresh = false) => {
+    setIsLoading(true)
 
-      const cacheKey = getCacheKey(employeeId, startDate, endDate)
-      const now = Date.now()
-      const cachedData = attendanceCache.get(cacheKey)
-
-      // Use cached data if available and not expired, unless force refresh is requested
-      if (!forceRefresh && cachedData && now - cachedData.timestamp < CACHE_DURATION) {
-        setAttendanceData(cachedData.data)
+    const cacheKey = getCacheKey(employeeId, startDate, endDate)
+    
+    // Check the cache first unless force refresh is requested
+    if (!forceRefresh) {
+      const cachedData = getCache<AttendanceDetailEntry[]>(cacheKey)
+      if (cachedData) {
+        setAttendanceData(cachedData)
         setIsLoading(false)
+        setInitialized(true)
         return
       }
+    }
 
-      try {
-        const result = await getEmployeeAttendance(employeeId, startOfDay(startDate), endOfDay(endDate))
+    try {
+      const result = await getEmployeeAttendance(employeeId, startOfDay(startDate), endOfDay(endDate))
 
-        if (result?.status === "SUCCESS" && result.data) {
-          // The response format has changed, now we get attendance directly
-          const attendanceArray = result.data || []
-          setAttendanceData(attendanceArray)
+      if (result?.status === "SUCCESS" && result.data) {
+        // The response format has changed, now we get attendance directly
+        const attendanceArray = result.data || []
+        setAttendanceData(attendanceArray)
 
-          // Cache the result
-          attendanceCache.set(cacheKey, {
-            data: attendanceArray,
-            timestamp: now,
-          })
+        // Cache the result for 5 minutes (300 seconds)
+        setCache(cacheKey, attendanceArray, 60)
 
-          toast.success("Attendance data loaded successfully")
-        } else {
-          toast.error(result?.message || "Failed to fetch attendance data")
-          setAttendanceData([])
-        }
-      } catch (error) {
-        toast.error("An error occurred while fetching attendance data")
-        console.error(error)
+        toast.success("Attendance data loaded successfully")
+      } else {
+        toast.error(result?.message || "Failed to fetch attendance data")
         setAttendanceData([])
-      } finally {
-        setIsLoading(false)
       }
-    },
-    [employeeId, startDate, endDate],
-  )
+    } catch (error) {
+      toast.error("An error occurred while fetching attendance data")
+      console.error(error)
+      setAttendanceData([])
+    } finally {
+      setIsLoading(false)
+      setInitialized(true)
+    }
+  }
 
+  // Initial load if isn't initialized
   useEffect(() => {
-    fetchAttendance()
-  }, [fetchAttendance])
+  if (!initialFetchRef.current && !isLoading) {
+    initialFetchRef.current = true;
+    fetchAttendance();
+  }
+}, [isLoading]);
+
 
   // Function to determine day color based on attendance
   const getDayClassNames = (date: Date) => {
