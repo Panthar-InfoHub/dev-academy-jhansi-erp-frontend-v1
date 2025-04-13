@@ -1,19 +1,29 @@
-"use server"
+"use server";
 
 import { BACKEND_SERVER_URL } from "@/env";
 import { parseServerResponse, serverResponseParserArguments } from "@/lib/utils";
 import {
-	completeStudentDetails, completeStudentEnrollment, createExamEntryReqBody,
+	completeStudentDetails,
+	completeStudentEnrollment,
+	createExamEntryReqBody,
 	createNewStudentData,
-	examEntry, feePayment,
+	examEntry,
+	feePayment,
 	newEnrollmentReqBody,
 	payStudentFeeBody,
-	studentAttributes, StudentPaymentsResponse, studentSearchResponse,
-	updateEnrollmentBody, updateExamEntryReqBody
+	studentAttributes,
+	StudentPaymentsResponse,
+	studentSearchResponse,
+	updateEnrollmentBody,
+	updateExamEntryReqBody
 } from "@/types/student";
 import axios, { AxiosError } from "axios";
 import { revalidatePath } from "next/cache";
+import { getCache, setCache, invalidateCache } from "@/lib/cache";
 
+// ----------------------------------------------------------------------
+// GET REQUESTS WITH CACHING
+// ----------------------------------------------------------------------
 
 export async function searchStudents(
 	q: string = "",
@@ -21,154 +31,232 @@ export async function searchStudents(
 	limit: number = 10,
 	ascending: boolean = false
 ): Promise<serverResponseParserArguments<studentSearchResponse>> {
-
-	console.log("Searching for students", { q, page, limit, ascending })
-
+	console.log("Searching for students", { q, page, limit, ascending });
+	
+	// Create a unique cache key based on the search parameters.
+	const cacheKey = `student-search-${q}-${page}-${limit}-${ascending}`;
+	const cachedData = getCache<serverResponseParserArguments<studentSearchResponse>>(cacheKey);
+	if (cachedData) {
+		console.debug("Returning cached student search data for key:", cacheKey);
+		return cachedData;
+	}
+	
 	try {
-		const response = await axios.get(
-			`${BACKEND_SERVER_URL}/v1/student/`,
-			{
-				params: {
-					q,
-					page,
-					limit,
-					ascending
-				}
-			}
-		)
+		// Build URL with query parameters.
+		const url = new URL(`${BACKEND_SERVER_URL}/v1/student/`);
+		url.searchParams.append("q", q);
+		url.searchParams.append("page", String(page));
+		url.searchParams.append("limit", String(limit));
+		url.searchParams.append("ascending", String(ascending));
 		
-		
-		
-		const extractedData = response.data
-
-		return parseServerResponse<studentSearchResponse>({ status: "SUCCESS", data: extractedData, message: "Data Fetched" })
-	}
-	catch (e) {
-		console.error(`Failed to search students with data : ${{ q, limit, page, ascending }}`, JSON.stringify(e))
-
-		if (e instanceof AxiosError) {
-			if (e.isAxiosError) {
-				console.debug("Search Student Error is Axios Error")
-				const errStatus = e.status
-				const responseStatusCode = e.response ? e.response.status : null
-				const responseBody = e.response ? e.response.data : null
-				console.error("Error details : ", JSON.stringify({ errStatus, responseStatusCode, responseBody }))
-				return parseServerResponse<null>({
-					status: "ERROR",
-					message: responseBody.error
-				})
-			}
+		const response = await fetch(url.toString());
+		if (!response.ok) {
+			const errorBody = await response.json().catch(() => ({}));
+			console.error("Fetch error in searchStudents:", { status: response.status, body: errorBody });
+			return parseServerResponse<null>({
+				status: "ERROR",
+				message: errorBody.error || "Failed to fetch student search results",
+				data: null
+			});
 		}
+		
+		const extractedData = await response.json();
+		
+		const parsedResponse = parseServerResponse<studentSearchResponse>({
+			status: "SUCCESS",
+			data: extractedData,
+			message: "Data Fetched"
+		});
+		
+		// Cache the search response for 30 seconds.
+		setCache(cacheKey, parsedResponse, 30);
+		return parsedResponse;
+	} catch (e: any) {
+		console.error("Failed to search students with data:", { q, limit, page, ascending }, e);
+		if (e instanceof AxiosError && e.isAxiosError) {
+			const responseBody = e.response ? e.response.data : null;
+			console.debug("Search Student Error is Axios Error");
+			return parseServerResponse<null>({
+				status: "ERROR",
+				message: responseBody?.error || "An error occurred while searching students",
+				data: null
+			});
+		}
+		return parseServerResponse<null>({
+			status: "ERROR",
+			message: "An unexpected error occurred while searching students",
+			data: null
+		});
 	}
-
 }
 
-
-/*
- * Fetches a student by their ID, including nested related data.
- * 
- * The `Student.findByPk` method fetches a student record based on the provided `studentId`.
- *
- * – The `StudentEnrollment` model is included to fetch enrollment details related to the student.
- * – Within `StudentEnrollment`, two nested associations are included:
- *   1.
- * `ExamEntry` – Fetches exam-related details for the student's enrollment.
- *   2.
- * `StudentMonthlyFee` – Fetches fee-related details for the student's enrollment.
- *
- * This nesting structure ensures that both `ExamEntry` and `StudentMonthlyFee` entries 
- * are fetched as part of the `StudentEnrollment` details, providing a complete view 
- * of the student's enrollment and associated data.
- */
-
-//Completed - Added no cache store 
 export async function getStudent(studentId: string) {
-	console.log(
-		"Fetching student with id: ",
-		studentId
-	)
-
+	console.log("Fetching student with id:", studentId);
+	
+	if (!studentId) {
+		return parseServerResponse<null>({
+			status: "ERROR",
+			message: "Student ID is required",
+			data: null
+		});
+	}
+	
+	// Create a unique cache key for the student.
+	const cacheKey = `student-details-${studentId}`;
+	const cachedData = getCache<serverResponseParserArguments<completeStudentDetails>>(cacheKey);
+	if (cachedData) {
+		console.debug("Returning cached student data for key:", cacheKey);
+		return cachedData;
+	}
+	
 	try {
-		const response = await axios.get(
-			`${BACKEND_SERVER_URL}/v1/student/${studentId}`,
-			{
-				headers: {
-					'Cache-Control': 'no-store'
-				}
+		const url = `${BACKEND_SERVER_URL}/v1/student/${studentId}`;
+		
+		const response = await fetch(url, {
+			// We avoid using any caching headers so that our manual caching can take place.
+			headers: {
+				"Content-Type": "application/json"
 			}
-		)
-		console.debug("Successfully fetched student with id: ", studentId, "with response: ", response.data)
-		return parseServerResponse<completeStudentDetails>({
+		});
+		
+		if (!response.ok) {
+			const errorBody = await response.json().catch(() => ({}));
+			console.error("Fetch error in getStudent:", { status: response.status, body: errorBody });
+			return parseServerResponse<null>({
+				status: "ERROR",
+				message: errorBody.error || "Failed to fetch student data",
+				data: null
+			});
+		}
+		
+		const data = await response.json();
+		
+		const parsedResponse = parseServerResponse<completeStudentDetails>({
 			status: "SUCCESS",
 			message: "Student Fetched Successfully",
-			data: response.data.student
-		})
-	}
-	catch (e) {
-		console.error(`Failed to get student with id : ${studentId}`, JSON.stringify(e))
-		if (e instanceof AxiosError) {
-			if (e.isAxiosError) {
-				console.debug("Find Student Error is Axios Error")
-				const errStatus = e.status
-				const responseStatusCode = e.response ? e.response.status : null
-				const responseBody = e.response ? e.response.data : null
-				console.error("Error details : ", JSON.stringify({ errStatus, responseStatusCode, responseBody }))
-				return parseServerResponse<null>({
-					status: "ERROR",
-					message: responseBody.error,
-					data: null
-				})
-			}
+			data: data.student
+		});
+		
+		// Cache the student data for 30 seconds.
+		setCache(cacheKey, parsedResponse, 30);
+		return parsedResponse;
+	} catch (e: any) {
+		console.error(`Failed to get student with id: ${studentId}`, e);
+		if (e instanceof AxiosError && e.isAxiosError) {
+			const responseBody = e.response ? e.response.data : null;
+			console.debug("Get Student Error is Axios Error");
+			return parseServerResponse<null>({
+				status: "ERROR",
+				message: responseBody?.error || "Failed to fetch student data",
+				data: null
+			});
 		}
+		return parseServerResponse<null>({
+			status: "ERROR",
+			message: "An unexpected error occurred while fetching student data",
+			data: null
+		});
 	}
 }
 
-//COMPLETED
-export async function createNewStudent(data: createNewStudentData) {
+// ----------------------------------------------------------------------
+// NON-GET REQUESTS (e.g., creating or updating students)
+// ----------------------------------------------------------------------
 
-	console.log("Creating new student with data: ", data)
+export async function createNewStudent(data: createNewStudentData) {
+	console.log("Creating new student with data:", data);
 	try {
+		// POST requests can continue to use axios if desired.
 		const response = await axios.post(
 			`${BACKEND_SERVER_URL}/v1/student`,
-			{
-				...data
-			},
+			{ ...data },
 			{
 				headers: {
-					'Content-Type': 'application/json'
+					"Content-Type": "application/json"
 				}
 			}
-		)
-		console.debug("Successfully created new student with data: ", data, "with response: ", response.data)
-
-		const newStudent: completeStudentDetails = response.data.studentData
-
-		return parseServerResponse<completeStudentDetails>({
+		);
+		
+		// After creating a new student, you might want to revalidate related cache or paths.
+		revalidatePath("/dashboard/student");
+		return parseServerResponse({
 			status: "SUCCESS",
 			message: "Student Created Successfully",
-			data: newStudent
-		})
-
-	}
-	catch (e) {
-		console.error(`Failed to create new student with data : ${data}`, JSON.stringify(e))
-		if (e instanceof AxiosError) {
-			if (e.isAxiosError) {
-				console.debug("Create Student Error is Axios Error")
-				const errStatus = e.status
-				const responseStatusCode = e.response ? e.response.status : null
-				const responseBody = e.response ? e.response.data : null
-				console.error("Error details : ", JSON.stringify({ errStatus, responseStatusCode, responseBody }))
-				return parseServerResponse<null>({
-					status: "ERROR",
-					message: responseBody.error,
-					data: null
-				})
-			}
+			data: response.data.student
+		});
+	} catch (e: any) {
+		console.error("Failed to create new student", e);
+		if (e instanceof AxiosError && e.isAxiosError) {
+			const responseBody = e.response ? e.response.data : null;
+			return parseServerResponse<null>({
+				status: "ERROR",
+				message: responseBody?.error || "Failed to create new student",
+				data: null
+			});
 		}
+		return parseServerResponse<null>({
+			status: "ERROR",
+			message: "An unexpected error occurred while creating a new student",
+			data: null
+		});
 	}
-
 }
+
+// Example of an update function where after a successful update the cache is invalidated.
+export async function updateStudent(studentId: string, updatedData: Partial<studentAttributes>) {
+	if (!studentId) {
+		return parseServerResponse({ status: "ERROR", message: "Student ID is required" });
+	}
+	
+	console.log("Updating student with id:", studentId, "data:", updatedData);
+	try {
+		const response = await axios.put(
+			`${BACKEND_SERVER_URL}/v1/student/${studentId}`,
+			updatedData,
+			{
+				headers: {
+					"Content-Type": "application/json"
+				}
+			}
+		);
+		
+		// Invalidate the cached student details.
+		invalidateCache(`student-details-${studentId}`);
+		revalidatePath(`/dashboard/student/${studentId}`);
+		
+		return parseServerResponse({
+			status: "SUCCESS",
+			message: "Student Updated Successfully",
+			data: response.data.student
+		});
+	} catch (e: any) {
+		console.error("Failed to update student", e);
+		if (e instanceof AxiosError && e.isAxiosError) {
+			const responseBody = e.response ? e.response.data : null;
+			return parseServerResponse<null>({
+				status: "ERROR",
+				message: responseBody?.error || "Failed to update student",
+				data: null
+			});
+		}
+		return parseServerResponse<null>({
+			status: "ERROR",
+			message: "An unexpected error occurred while updating the student",
+			data: null
+		});
+	}
+}
+
+// ----------------------------------------------------------------------
+// Other functions (e.g., handling student payments, exams, enrollments, etc.)
+// The rest of the file remains unchanged unless additional caching
+// is needed for other GET requests.
+// ----------------------------------------------------------------------
+
+
+
+
+
 
 //Completed
 export async function updateStudentDetails(studentId: string, data: Partial<studentAttributes>) {

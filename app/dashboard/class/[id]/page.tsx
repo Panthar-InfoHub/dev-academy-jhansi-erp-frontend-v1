@@ -3,6 +3,7 @@ import { redirect, notFound } from "next/navigation"
 import { getClassroomDetails, getAllSectionsOfClassroom } from "@/lib/actions/classroom"
 import { ClassroomDetail } from "@/components/classroom/classroom-detail"
 import { unstable_noStore as noStore } from "next/cache"
+import { completeClassDetails } from "@/types/classroom";
 
 interface ClassroomDetailPageProps {
   params: Promise<{
@@ -37,7 +38,7 @@ export default async function ClassroomDetailPage({ params }: ClassroomDetailPag
 
   return (
     <div className="w-full max-w-5xl mx-auto">
-      <ClassroomDetail classroom={classroomData} sections={sections || []} />
+      <ClassroomDetail classroom={classroomData as completeClassDetails} sections={sections || []} />
     </div>
   )
 }

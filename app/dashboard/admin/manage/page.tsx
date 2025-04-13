@@ -22,6 +22,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { AllAdminDetailsResponse } from "@/types/admin";
 
 export default function ManageAdminsPage() {
   const [admins, setAdmins] = useState([])
@@ -44,7 +45,7 @@ export default function ManageAdminsPage() {
     try {
       const response = await getAllAdmins()
       if (response?.status === "SUCCESS" && response.data) {
-        setAdmins(response.data.admins)
+        setAdmins((response.data as AllAdminDetailsResponse).admins)
       } else {
         toast.error(response?.message || "Failed to fetch admins")
       }

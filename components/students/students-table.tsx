@@ -7,7 +7,11 @@ import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { toast } from "sonner"
 import { Copy, ExternalLink, RefreshCw, Search, Trash2, Calendar, Filter, School, BookOpen, Plus } from 'lucide-react'
-import { getClassroomStudentsInfo, getClassroomSectionStudentsInfo } from "@/lib/actions/classroom"
+import {
+  getClassroomStudentsInfo,
+  getClassroomSectionStudentsInfo,
+  classroomSectionStudentDataWithFees
+} from "@/lib/actions/classroom"
 import { deleteStudent } from "@/lib/actions/student"
 import { getAllSectionsOfClassroom } from "@/lib/actions/classroom"
 import type { completeClassDetails, completeClassSectionDetails } from "@/types/classroom"
@@ -123,8 +127,8 @@ export function StudentsTable({ initialClassrooms }: StudentsTableProps) {
         })
 
         if (result?.status === "SUCCESS" && result.data) {
-          setStudents(result.data)
-          toast.success(`Found ${result.data.length} students`)
+          setStudents(result.data as classroomSectionStudentDataWithFees[])
+          toast.success(`Found ${(result.data as classroomSectionStudentDataWithFees[]).length} students`)
         } else {
           toast.error(result?.message || "Failed to fetch section students")
         }
@@ -137,8 +141,8 @@ export function StudentsTable({ initialClassrooms }: StudentsTableProps) {
         })
 
         if (result?.status === "SUCCESS" && result.data) {
-          setStudents(result.data)
-          toast.success(`Found ${result.data.length} students`)
+          setStudents(result.data as classroomSectionStudentDataWithFees[])
+          toast.success(`Found ${(result.data as classroomSectionStudentDataWithFees[]).length} students`)
         } else {
           toast.error(result?.message || "Failed to fetch class students")
         }

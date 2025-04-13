@@ -318,7 +318,8 @@ export function ClassroomTable({ initialClassrooms }: ClassroomTableProps) {
                 <TableHead>Status</TableHead>
                 <TableHead>Sections</TableHead>
                 <TableHead>ID</TableHead>
-                <TableHead className="w-[80px]"></TableHead>
+                <TableHead>View</TableHead>
+                <TableHead></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -360,6 +361,18 @@ export function ClassroomTable({ initialClassrooms }: ClassroomTableProps) {
                       </div>
                     </TableCell>
                     <TableCell>
+                        <Button
+                        variant={"outline"}
+                        className={"flex items-center justify-end"}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleViewClassroom(classroom.id)
+                            }}
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </Button>
+                      </TableCell>
+                    <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -367,14 +380,6 @@ export function ClassroomTable({ initialClassrooms }: ClassroomTableProps) {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleViewClassroom(classroom.id)}>
-                            <ExternalLink className="mr-2 h-4 w-4" />
-                            View
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleCopyId(classroom.id)}>
-                            <Copy className="mr-2 h-4 w-4" />
-                            Copy ID
-                          </DropdownMenuItem>
                           {classroom.isActive ? (
                             <DropdownMenuItem
                               onClick={() => setClassroomToToggle({ id: classroom.id, isActive: true })}

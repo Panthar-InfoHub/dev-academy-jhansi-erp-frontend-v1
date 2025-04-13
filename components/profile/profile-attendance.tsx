@@ -236,7 +236,7 @@ export function ProfileAttendance({ employeeId }: ProfileAttendanceProps) {
                       </td>
                       <td className="py-2 px-4">
                         {attendance.isHoliday ? (
-                          <Badge variant="secondary">Holiday</Badge>
+                          <Badge variant="secondary" className={"bg-blue-800"}>Holiday</Badge>
                         ) : attendance.isLeave ? (
                           <Badge
                             variant="outline"

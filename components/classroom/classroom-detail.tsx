@@ -33,7 +33,7 @@ import {
   updateClassroomSection,
   deleteClassroomSection,
   getClassroomStudentsInfo,
-  getClassroomSectionStudentsInfo,
+  getClassroomSectionStudentsInfo, classroomSectionStudentDataWithFees, classroomStudentDataWithFees,
 } from "@/lib/actions/classroom"
 import type { completeClassDetails, completeClassSectionDetails, subject } from "@/types/classroom"
 import {
@@ -175,7 +175,7 @@ export function ClassroomDetail({ classroom, sections: initialSections }: Classr
         })
 
         if (result?.status === "SUCCESS" && result.data) {
-          setSectionStudents(result.data)
+          setSectionStudents(result.data as classroomSectionStudentDataWithFees[])
         } else {
           toast.error(result?.message || "Failed to fetch section students")
           setSectionStudents([])
@@ -189,7 +189,7 @@ export function ClassroomDetail({ classroom, sections: initialSections }: Classr
         })
 
         if (result?.status === "SUCCESS" && result.data) {
-          setClassStudents(result.data)
+          setClassStudents(result.data as classroomStudentDataWithFees[])
         } else {
           toast.error(result?.message || "Failed to fetch class students")
           setClassStudents([])

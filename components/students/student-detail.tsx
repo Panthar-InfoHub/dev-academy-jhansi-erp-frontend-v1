@@ -43,6 +43,7 @@ import { NewEnrollmentDialog } from "./new-enrollment-dialog"
 import { getClassroomDetails, getAllSectionsOfClassroom } from "@/lib/actions/classroom"
 import { PaymentReceiptDialog } from "./payment-receipt-dialog"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { completeClassDetails } from "@/types/classroom";
 
 interface StudentDetailProps {
   student: completeStudentDetails
@@ -109,7 +110,7 @@ export function StudentDetail({ student }: StudentDetailProps) {
             const section = sectionDetails.find((s) => s.id === enrollment.classroomSectionId)
 
             details[enrollment.id] = {
-              className: classDetails.name || "Unknown Class",
+              className: (classDetails as completeClassDetails).name || "Unknown Class",
               sectionName: section?.name || "Unknown Section",
             }
           }

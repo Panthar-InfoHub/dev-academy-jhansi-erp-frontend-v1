@@ -18,6 +18,7 @@ import { EnhancedCalendar } from "@/components/custom/date/calandar-pickup"
 import ClassroomCache from "@/lib/cache/classroom-cache"
 import type { completeClassDetails } from "@/types/classroom"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { PaymentsInfoResponse } from "@/types/analytics";
 
 // Type for enrollment details with class and section info
 type EnrollmentDetails = {
@@ -55,12 +56,12 @@ export default function PaymentsPage() {
       const result = await getPayments(startDate, endDate, page, limit, ascending)
 
       if (result?.status === "SUCCESS" && result.data) {
-        setPayments(result.data.payments || [])
-        setTotalPayments(result.data.count || 0)
-        setTotalPages(Math.ceil(result.data.count / limit) || 1)
+        setPayments((result.data as PaymentsInfoResponse).payments || [])
+        setTotalPayments((result.data as PaymentsInfoResponse).count || 0)
+        setTotalPages(Math.ceil((result.data as PaymentsInfoResponse).count / limit) || 1)
 
         // Fetch class and section details for each payment
-        fetchEnrollmentDetails(result.data.payments || [])
+        fetchEnrollmentDetails((result.data as PaymentsInfoResponse).payments || [])
       } else {
         toast.error(result?.message || "Failed to fetch payments")
       }

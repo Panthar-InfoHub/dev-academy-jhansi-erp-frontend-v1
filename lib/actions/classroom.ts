@@ -1,520 +1,634 @@
-"use server"
+"use server";
+
 import { BACKEND_SERVER_URL } from "@/env";
 import { parseServerResponse } from "@/lib/utils";
-import { classroom, classSection, completeClassDetails, completeClassSectionDetails, subject } from "@/types/classroom";
-import { completeStudentDetails, completeStudentDetailsWithTimestamp, studentAttributes } from "@/types/student";
-import axios, { AxiosError } from "axios";
+import {
+  classroom,
+  classSection,
+  completeClassDetails,
+  completeClassSectionDetails,
+  subject,
+} from "@/types/classroom";
+import {
+  completeStudentDetailsWithTimestamp,
+} from "@/types/student";
 import { revalidatePath } from "next/cache";
-import { identityEntry } from "@/types/employee";
+import { getCache, setCache, invalidateCache } from "@/lib/cache";
 
 interface newClassroomRequest extends Partial<classroom> {
-	name: string
-	isActive: boolean
+  name: string;
+  isActive: boolean;
 }
 
 interface updateClassroomRequest extends Partial<classroom> {
-	name: string | undefined,
-	isActive: boolean | undefined,
+  name: string | undefined;
+  isActive: boolean | undefined;
 }
-
 
 export interface classroomStudentDataWithFees {
+  id: string;
+  studentId: string;
+  classroomSectionId: string;
+  sessionStart: string;
+  sessionEnd: string;
+  monthlyFee: number;
+  isActive: boolean;
+  student: completeStudentDetailsWithTimestamp;
+  classSection: {
     id: string;
-    studentId: string;
-    classroomSectionId: string;
-    sessionStart: string;
-    sessionEnd: string;
-    monthlyFee: number;
+    name: string;
     isActive: boolean;
-    student: completeStudentDetailsWithTimestamp;
-    classSection: {
-      id: string;
-      name: string;
-      isActive: boolean;
-    };
-    feeDueTotal: number;
-    feeCompletelyPaid: boolean;
-    lastPaymentDate: string | null;
-}[]
-
+  };
+  feeDueTotal: number;
+  feeCompletelyPaid: boolean;
+  lastPaymentDate: string | null;
+}
 
 export interface classroomSectionStudentDataWithFees {
-    id: string;
-    studentId: string;
-    classroomSectionId: string;
-    sessionStart: string; // ISO string format
-    sessionEnd: string;   // ISO string format
-    monthlyFee: number;
-    isActive: boolean;
-    student: completeStudentDetailsWithTimestamp;
-    feeDueTotal: number;
-    feeCompletelyPaid: boolean;
-    lastPaymentDate: string | null;
-}[];
+  id: string;
+  studentId: string;
+  classroomSectionId: string;
+  sessionStart: string; // ISO string format
+  sessionEnd: string; // ISO string format
+  monthlyFee: number;
+  isActive: boolean;
+  student: completeStudentDetailsWithTimestamp;
+  feeDueTotal: number;
+  feeCompletelyPaid: boolean;
+  lastPaymentDate: string | null;
+}
 
-//Completed
+
+// -------------------------------------------------------------------
+// POST REQUEST: Create a new classroom (no caching needed)
+// -------------------------------------------------------------------
 export async function createClassroom(data: newClassroomRequest) {
+  console.debug("Creating a new classroom", data);
 
-	console.debug("Creating a new classroom", data)
+  try {
+    const response = await fetch(`${BACKEND_SERVER_URL}/v1/classroom`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...data }),
+    });
 
-	try {
-		console.debug("Sending axios request to create new classroom")
-		const response = await axios.post(
-			`${BACKEND_SERVER_URL}/v1/classroom`,
-			{
-				...data
-			},
-			{
-				headers: {
-					'Content-Type': 'application/json'
-				}
-			}
-		)
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      console.error("Failed to create new classroom. Status:", response.status, errorBody);
+      return parseServerResponse({
+        status: "ERROR",
+        message: errorBody.error || "Failed to create new classroom",
+      });
+    }
 
-		const classroomData: completeClassDetails = response.data.classRoomData
-		console.debug("New classroom created successfully with details: ", classroomData)
-		console.debug("Response Body from createClassroom: ", response.data)
-		revalidatePath("/dashboard/class")
-		return parseServerResponse({
-			status: "SUCCESS",
-			message: "Classroom Created Successfully",
-			data: classroomData
-		})
-	}
-	catch (e) {
-		console.error("Failed to create new classroom with the following error: ", e)
-
-		if (e instanceof AxiosError) {
-			if (e.isAxiosError) {
-				console.debug("Create Classroom Error is Axios Error")
-				const errStatus = e.status
-				const responseStatusCode = e.response ? e.response.status : null
-				const responseBody = e.response ? e.response.data : null
-				console.debug("Error details : ", { errStatus, responseStatusCode, responseBody })
-
-				/*
-				* This will only give 400 or 500 status codes only
-				* */
-
-				console.debug("Bad Request")
-				return parseServerResponse({
-					status: "ERROR",
-					message: responseBody.error
-				})
-
-
-			}
-		}
-
-	}
-
-
+    const responseData = await response.json();
+    const classroomData: completeClassDetails = responseData.classRoomData;
+    console.debug("New classroom created successfully with details:", classroomData);
+    revalidatePath("/dashboard/class");
+    return parseServerResponse({
+      status: "SUCCESS",
+      message: "Classroom Created Successfully",
+      data: classroomData,
+    });
+  } catch (e) {
+    console.error("Failed to create new classroom with the following error:", e);
+    return parseServerResponse({
+      status: "ERROR",
+      message: "An unexpected error occurred while creating the classroom",
+    });
+  }
 }
 
-export async function updateClassroom(data: Partial<updateClassroomRequest>, classroomId: string,) {
-	console.debug("Updating classroom", data)
+// -------------------------------------------------------------------
+// PUT REQUEST: Update an existing classroom with cache invalidation
+// -------------------------------------------------------------------
+export async function updateClassroom(
+  data: Partial<updateClassroomRequest>,
+  classroomId: string
+) {
+  console.debug("Updating classroom", data);
 
-	try {
-		const response = await axios.put(
-			`${BACKEND_SERVER_URL}/v1/classroom/${classroomId}`,
-			{
-				...data
-			},
-			{
-				headers: {
-					'Content-Type': 'application/json'
-				}
-			})
+  try {
+    const response = await fetch(`${BACKEND_SERVER_URL}/v1/classroom/${classroomId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...data }),
+    });
 
-		const classroomData: completeClassDetails = response.data.classRoomData
-		console.debug("Classroom updated successfully with details: ", response.data)
-		return parseServerResponse({
-			status: "SUCCESS",
-			message: "Classroom Updated Successfully",
-			data: classroomData
-		})
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      console.error("Failed to update classroom. Status:", response.status, errorBody);
+      return parseServerResponse({
+        status: "ERROR",
+        message: errorBody.error || "Failed to update classroom",
+      });
+    }
 
-	}
-	catch (e) {
-		console.error("Failed to update classroom with the following error: ", e)
+    const responseData = await response.json();
+    const classroomData: completeClassDetails = responseData.classRoomData;
+    console.debug("Classroom updated successfully with details:", responseData);
+    // Invalidate the cached details for this classroom
+    invalidateCache(`classroom-details-${classroomId}`);
+    revalidatePath(`/dashboard/class/${classroomId}`);
 
-		if (e instanceof AxiosError) {
-			if (e.isAxiosError) {
-				console.debug("Update Classroom Error is Axios Error")
-				const errStatus = e.status
-				const responseStatusCode = e.response ? e.response.status : null
-				const responseBody = e.response ? e.response.data : null
-				console.debug("Error details : ", { errStatus, responseStatusCode, responseBody })
-
-				return parseServerResponse({
-					status: "ERROR",
-					message: responseBody.error
-				})
-
-			}
-		}
-
-	}
-
-
+    return parseServerResponse({
+      status: "SUCCESS",
+      message: "Classroom Updated Successfully",
+      data: classroomData,
+    });
+  } catch (e) {
+    console.error("Failed to update classroom with the following error:", e);
+    return parseServerResponse({
+      status: "ERROR",
+      message: "An unexpected error occurred while updating the classroom",
+    });
+  }
 }
 
-//Completed
+// -------------------------------------------------------------------
+// DELETE REQUEST: Delete a classroom
+// -------------------------------------------------------------------
 export async function deleteClassroom(classroomId: string) {
+  console.debug("Classroom ID to delete:", classroomId);
 
-	console.debug("Classroom ID to delete: ", classroomId)
+  try {
+    const response = await fetch(`${BACKEND_SERVER_URL}/v1/classroom/${classroomId}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+    });
 
-	try {
-		const response = await axios.delete(
-			`${BACKEND_SERVER_URL}/v1/classroom/${classroomId}`
-		)
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      console.error("Failed to delete classroom. Status:", response.status, errorBody);
+      return parseServerResponse({
+        status: "ERROR",
+        message: errorBody.error || "Failed to delete classroom",
+      });
+    }
 
-		console.debug("Successfully deleted classroom with id: ", classroomId, "with response: ", response.data)
-
-
-		return parseServerResponse({
-			status: "SUCCESS",
-			message: "Classroom Deleted Successfully"
-		})
-
-	} catch (e) {
-		console.error("Failed to delete classroom with the following error: ", e)
-
-		if (e instanceof AxiosError) {
-			if (e.isAxiosError) {
-				console.debug("Delete Classroom Error is Axios Error")
-				const errStatus = e.status
-				const responseStatusCode = e.response ? e.response.status : null
-				const responseBody = e.response ? e.response.data : null
-				console.debug("Error details : ", { errStatus, responseStatusCode, responseBody })
-
-				return parseServerResponse({
-					status: "ERROR",
-					message: responseBody.error
-				})
-
-			}
-		}
-
-
-	}
-
+    const responseData = await response.json();
+    console.debug(
+      "Successfully deleted classroom with id:",
+      classroomId,
+      "with response:",
+      responseData
+    );
+    invalidateCache(`classroom-details-${classroomId}`);
+    return parseServerResponse({
+      status: "SUCCESS",
+      message: "Classroom Deleted Successfully",
+    });
+  } catch (e) {
+    console.error("Failed to delete classroom with the following error:", e);
+    return parseServerResponse({
+      status: "ERROR",
+      message: "An unexpected error occurred while deleting the classroom",
+    });
+  }
 }
 
-//Completed - Just make page of this
+// -------------------------------------------------------------------
+// GET REQUEST: Get classroom details (alternative endpoint) with caching
+// -------------------------------------------------------------------
 export async function getClassroomDetails(classroomId: string) {
+  console.debug("Fetching classroom details for id:", classroomId);
 
-	console.debug("Classroom ID to fetch: ", classroomId)
+  if (!classroomId) {
+    return parseServerResponse<null>({
+      status: "ERROR",
+      message: "Classroom ID is required",
+      data: null,
+    });
+  }
 
-	try {
-		const response = await axios.get(
-			`${BACKEND_SERVER_URL}/v1/classroom/${classroomId}`
-		)
+  const cacheKey = `classroom-details-full-${classroomId}`;
+  const cachedData = getCache<completeClassDetails>(cacheKey);
+  if (cachedData) {
+    console.debug("Returning cached classroom full details for key:", cacheKey);
+    return cachedData;
+  }
 
-		console.debug("Successfully fetched classroom with id: ", classroomId, "with response: ", response.data)
+  try {
+    const response = await fetch(`${BACKEND_SERVER_URL}/v1/classroom/${classroomId}`, {
+      headers: { "Content-Type": "application/json" },
+    });
 
-		const classroomDetails: completeClassDetails = response.data.classRoomData
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      console.error("Failed to get classroom details. Status:", response.status, errorBody);
+      return parseServerResponse<null>({
+        status: "ERROR",
+        message: errorBody.error || "Failed to fetch classroom details",
+        data: null,
+      });
+    }
 
-		return classroomDetails
-
-	}
-	catch (e) {
-		console.error("Failed to fetch classroom with the following error: ", e)
-		if (e instanceof AxiosError) {
-			if (e.isAxiosError) {
-				console.debug("Fetch Classroom Error is Axios Error")
-				const errStatus = e.status
-				const responseStatusCode = e.response ? e.response.status : null
-				const responseBody = e.response ? e.response.data : null
-				console.debug("Error details : ", { errStatus, responseStatusCode, responseBody })
-
-
-			}
-		}
-	}
+    const responseData = await response.json();
+    const classroomDetails: completeClassDetails = responseData.classRoomData;
+    // Cache the details for 30 seconds.
+    setCache(cacheKey, classroomDetails, 30);
+    return classroomDetails;
+  } catch (e) {
+    console.error("Failed to fetch classroom details with the following error:", e);
+    return parseServerResponse<null>({
+      status: "ERROR",
+      message: "An unexpected error occurred while fetching classroom details",
+      data: null,
+    });
+  }
 }
 
-// Completed and Updated
+// -------------------------------------------------------------------
+// GET REQUEST: Get all classrooms with caching
+// -------------------------------------------------------------------
 export async function getAllClassrooms(): Promise<completeClassDetails[]> {
-	try {
-		const response = await axios.get(
-			`${BACKEND_SERVER_URL}/v1/classroom`
-		)
+  const cacheKey = "all-classrooms";
+  const cachedData = getCache<completeClassDetails[]>(cacheKey);
+  if (cachedData) {
+    console.debug("Returning cached all-classrooms data");
+    return cachedData;
+  }
 
-		console.debug("Successfully fetched all classrooms with response: ", response.data)
+  try {
+    const response = await fetch(`${BACKEND_SERVER_URL}/v1/classroom`, {
+      headers: { "Content-Type": "application/json" },
+    });
 
-		const allClassrooms: completeClassDetails[] = response.data.classRoomData
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      console.error("Failed to get all classrooms. Status:", response.status, errorBody);
+      return [];
+    }
 
-		return allClassrooms
-	}
-	catch (e) {
-		console.error("Failed to fetch all classrooms with the following error: ", e)
-		if (e instanceof AxiosError) {
-			if (e.isAxiosError) {
-				console.debug("Fetch All Classrooms Error is Axios Error")
-				const errStatus = e.status
-				const responseStatusCode = e.response ? e.response.status : null
-				const responseBody = e.response ? e.response.data : null
-				console.debug("Error details : ", { errStatus, responseStatusCode, responseBody })
-
-
-
-			}
-		}
-	}
+    const responseData = await response.json();
+    const allClassrooms: completeClassDetails[] = responseData.classRoomData;
+    // Cache for 30 seconds.
+    setCache(cacheKey, allClassrooms, 30);
+    return allClassrooms;
+  } catch (e) {
+    console.error("Failed to fetch all classrooms with the following error:", e);
+    return [];
+  }
 }
 
-export async function getClassroomStudentsInfo(classroomId: string, data: {
-	startPeriod: Date,
-	endPeriod: Date,
-	activeOnly: boolean,
-}) {
+// -------------------------------------------------------------------
+// GET REQUEST: Get classroom students info with caching
+// -------------------------------------------------------------------
+export async function getClassroomStudentsInfo(
+  classroomId: string,
+  data: { startPeriod: Date; endPeriod: Date; activeOnly: boolean }
+) {
+  console.debug("Fetching classroom students info for id:", classroomId);
 
-	console.debug("Classroom ID to fetch students info: ", classroomId)
+  if (!classroomId) {
+    return parseServerResponse<null>({
+      status: "ERROR",
+      message: "Classroom ID is required",
+      data: null,
+    });
+  }
 
-	try {
-		const response = await axios.get(
-			`${BACKEND_SERVER_URL}/v1/classroom/${classroomId}/students`,
-			{
-				params: {
-					...data
-				}
-			}
-		)
+  const cacheKey = `classroom-students-${classroomId}-${data.startPeriod.toISOString()}-${data.endPeriod.toISOString()}-${data.activeOnly}`;
+  const cachedData = getCache<ReturnType<typeof parseServerResponse>>(cacheKey);
+  if (cachedData) {
+    console.debug("Returning cached classroom students info for key:", cacheKey);
+    return cachedData;
+  }
 
-		console.debug("Successfully fetched classroom students info with id: ", classroomId, "with response: ", response.data)
+  try {
+    const url = new URL(
+      `${BACKEND_SERVER_URL}/v1/classroom/${classroomId}/students`
+    );
+    url.searchParams.append("startPeriod", data.startPeriod.toISOString());
+    url.searchParams.append("endPeriod", data.endPeriod.toISOString());
+    url.searchParams.append("activeOnly", String(data.activeOnly));
 
-		const students: classroomStudentDataWithFees[] = response.data.students
+    const response = await fetch(url.toString(), {
+      headers: { "Content-Type": "application/json" },
+    });
 
-		return parseServerResponse<classroomStudentDataWithFees[]>({
-			status: "SUCCESS",
-			data: students,
-		})
-	}
-	catch (e) {
-		console.error("Failed to fetch classroom students info with the following error: ", e)
-		if (e instanceof AxiosError) {
-			if (e.isAxiosError) {
-				console.debug("Fetch Classroom Students Info Error is Axios Error")
-				const errStatus = e.status
-				const responseStatusCode = e.response ? e.response.status : null
-				const responseBody = e.response ? e.response.data : null
-				console.debug("Error details : ", { errStatus, responseStatusCode, responseBody })
-			}
-		}
-	}
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      console.error("Failed to fetch classroom students info. Status:", response.status, errorBody);
+      return parseServerResponse<null>({
+        status: "ERROR",
+        message: errorBody.error || "Failed to fetch classroom students info",
+        data: null,
+      });
+    }
 
+    const responseData = await response.json();
+    const students: classroomStudentDataWithFees[] = responseData.students;
+    const parsed = parseServerResponse<classroomStudentDataWithFees[]>({
+      status: "SUCCESS",
+      message: "Fetched Student Data",
+      data: students,
+    });
+    // Cache for 30 seconds.
+    setCache(cacheKey, parsed, 30);
+    return parsed;
+  } catch (e) {
+    console.error(
+      "Failed to fetch classroom students info with the following error:",
+      e
+    );
+    return parseServerResponse<null>({
+      status: "ERROR",
+      message: "An unexpected error occurred while fetching students info",
+      data: null,
+    });
+  }
 }
 
 /*
 *
-* Classroom section operations are below!
+* Classroom section operations
 *
 * */
 
 interface newClassSectionRequest extends Partial<classSection> {
-	name: string
-	isActive: boolean,
-	defaultFee: number, // Must be greater than 0
-	subjects: subject[],
+  name: string;
+  isActive: boolean;
+  defaultFee: number; // Must be greater than 0
+  subjects: subject[];
 }
 
 interface updateClassSectionRequest extends Partial<classSection> {
-	name?: string
-	isActive?: boolean
-	defaultFee?: number
-	subjects?: subject[]
+  name?: string;
+  isActive?: boolean;
+  defaultFee?: number;
+  subjects?: subject[];
 }
 
-//Completed in Section Page
+// -------------------------------------------------------------------
+// GET REQUEST: Get all sections of a classroom with caching
+// -------------------------------------------------------------------
 export async function getAllSectionsOfClassroom(classroomId: string) {
+  console.debug("Fetching sections for classroom id:", classroomId);
 
-	console.debug("Classroom ID to fetch sections: ", classroomId)
+  if (!classroomId) {
+    return [];
+  }
 
-	try {
-		const response = await axios.get(
-			`${BACKEND_SERVER_URL}/v1/classroom/${classroomId}/class-section`
-		)
+  const cacheKey = `classroom-sections-${classroomId}`;
+  const cachedData = getCache<completeClassSectionDetails[]>(cacheKey);
+  if (cachedData) {
+    console.debug("Returning cached classroom sections for key:", cacheKey);
+    return cachedData;
+  }
 
-		console.debug("Successfully fetched classroom sections with id: ", classroomId, "with response: ", response.data)
+  try {
+    const response = await fetch(
+      `${BACKEND_SERVER_URL}/v1/classroom/${classroomId}/class-section`,
+      {
+        headers: { "Content-Type": "application/json" },
+      }
+    );
 
-		const classSections: completeClassSectionDetails[] = response.data.sections
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      console.error("Failed to fetch classroom sections. Status:", response.status, errorBody);
+      return [];
+    }
 
-		return classSections
-
-
-	}
-	catch (e) {
-		console.error("Failed to fetch classroom sections with the following error: ", e)
-		if (e instanceof AxiosError) {
-			if (e.isAxiosError) {
-				console.debug("Fetch Classroom Sections Error is Axios Error")
-				const errStatus = e.status
-				const responseStatusCode = e.response ? e.response.status : null
-				const responseBody = e.response ? e.response.data : null
-				console.debug("Error details : ", { errStatus, responseStatusCode, responseBody })
-			}
-		}
-	}
-
+    const responseData = await response.json();
+    const classSections: completeClassSectionDetails[] = responseData.sections;
+    // Cache for 30 seconds.
+    setCache(cacheKey, classSections, 30);
+    return classSections;
+  } catch (e) {
+    console.error("Failed to fetch classroom sections with the following error:", e);
+    return [];
+  }
 }
 
-//Completed
-export async function createClassroomSection(classroomId: string, data: newClassSectionRequest) {
+// -------------------------------------------------------------------
+// POST REQUEST: Create a new classroom section
+// -------------------------------------------------------------------
+export async function createClassroomSection(
+  classroomId: string,
+  data: newClassSectionRequest
+) {
+  console.debug("Creating new section in classroom:", classroomId, "with data:", data);
 
-	console.debug("Creating new section in classroom : ", classroomId, "with data: ", data)
+  try {
+    const response = await fetch(
+      `${BACKEND_SERVER_URL}/v1/classroom/${classroomId}/class-section`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...data }),
+      }
+    );
 
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      console.error("Failed to create classroom section. Status:", response.status, errorBody);
+      return parseServerResponse({
+        status: "ERROR",
+        message: errorBody.error || "Failed to create classroom section",
+      });
+    }
 
-	try {
-		const response = await axios.post(
-			`${BACKEND_SERVER_URL}/v1/classroom/${classroomId}/class-section`,
-			{
-				...data
-			},
-			{
-				headers: {
-					'Content-Type': 'application/json'
-				}
-			})
-
-		console.debug("Successfully created new section in classroom : ", classroomId, "with response: ", response.data)
-
-		return parseServerResponse({
-			status: "SUCCESS",
-			message: "Classroom Section Created Successfully",
-			data: response.data.classSectionData
-		}
-		)
-
-	}
-	catch (e) {
-		console.error("Failed to create new section in classroom with the following error: ", e)
-		if (e instanceof AxiosError) {
-			if (e.isAxiosError) {
-				console.debug("Create Classroom Section Error is Axios Error")
-				const errStatus = e.status
-				const responseStatusCode = e.response ? e.response.status : null
-				const responseBody = e.response ? e.response.data : null
-				console.debug("Error details : ", { errStatus, responseStatusCode, responseBody })
-			}
-		}
-
-	}
-
-
+    const responseData = await response.json();
+    console.debug(
+      "Successfully created new section in classroom:",
+      classroomId,
+      "with response:",
+      responseData
+    );
+    return parseServerResponse({
+      status: "SUCCESS",
+      message: "Classroom Section Created Successfully",
+      data: responseData.classSectionData,
+    });
+  } catch (e) {
+    console.error("Failed to create new section in classroom with the following error:", e);
+    return parseServerResponse({
+      status: "ERROR",
+      message: "An unexpected error occurred while creating the classroom section",
+    });
+  }
 }
 
+// -------------------------------------------------------------------
+// PUT REQUEST: Update an existing classroom section with cache invalidation
+// -------------------------------------------------------------------
+export async function updateClassroomSection(
+  classroomId: string,
+  classroomSectionId: string,
+  data: updateClassSectionRequest
+) {
+  console.debug(
+    "Updating classroom section:",
+    classroomSectionId,
+    "inside classroom:",
+    classroomId,
+    "with data:",
+    data
+  );
 
-// Completed
-export async function updateClassroomSection(classroomId: string, classroomSectionId: string, data: updateClassSectionRequest) {
+  try {
+    const response = await fetch(
+      `${BACKEND_SERVER_URL}/v1/classroom/${classroomId}/class-section/${classroomSectionId}`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...data }),
+      }
+    );
 
-	console.debug("Updating classroom section : ", classroomSectionId, "inside class", classroomId, "with data: ", data)
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      console.error("Failed to update classroom section. Status:", response.status, errorBody);
+      return parseServerResponse({
+        status: "ERROR",
+        message: errorBody.error || "Failed to update classroom section",
+      });
+    }
 
-	try {
-		const response = await axios.put(
-			`${BACKEND_SERVER_URL}/v1/classroom/${classroomId}/class-section/${classroomSectionId}`,
-			{ ...data }
-		)
-
-		console.debug("Successfully fetched classroom sections with id: ", classroomId, "with response: ", response.data)
-		revalidatePath("/dashboard/class/section")
-		return parseServerResponse({
-			status: "SUCCESS",
-			message: "Classroom Section Updated Successfully",
-			data: response.data.classSectionData
-		})
-
-	} catch (e) {
-		console.error("Failed to update classroom section with the following error: ", e)
-		if (e instanceof AxiosError) {
-			if (e.isAxiosError) {
-				console.debug("Update Classroom Section Error is Axios Error")
-				const errStatus = e.status
-				const responseStatusCode = e.response ? e.response.status : null
-				const responseBody = e.response ? e.response.data : null
-				console.debug("Error details : ", { errStatus, responseStatusCode, responseBody: JSON.stringify(responseBody) })
-			}
-		}
-
-	}
-
+    const responseData = await response.json();
+    console.debug("Successfully updated classroom section with response:", responseData);
+    // Invalidate cache for sections of this classroom.
+    invalidateCache(`classroom-sections-${classroomId}`);
+    revalidatePath(`/dashboard/class/${classroomId}`);
+    return parseServerResponse({
+      status: "SUCCESS",
+      message: "Classroom Section Updated Successfully",
+      data: responseData.classSectionData,
+    });
+  } catch (e) {
+    console.error("Failed to update classroom section with the following error:", e);
+    return parseServerResponse({
+      status: "ERROR",
+      message: "An unexpected error occurred while updating the classroom section",
+    });
+  }
 }
 
-//Completed
-export async function deleteClassroomSection(classroomId: string, classroomSectionId: string) {
+// -------------------------------------------------------------------
+// DELETE REQUEST: Delete a classroom section with cache invalidation
+// -------------------------------------------------------------------
+export async function deleteClassroomSection(
+  classroomId: string,
+  classroomSectionId: string
+) {
+  console.debug(
+    "Deleting classroom section:",
+    classroomSectionId,
+    "inside classroom:",
+    classroomId
+  );
 
-	console.debug("Deleting classroom section : ", classroomSectionId, "inside class", classroomId)
+  try {
+    const response = await fetch(
+      `${BACKEND_SERVER_URL}/v1/classroom/${classroomId}/class-section/${classroomSectionId}`,
+      {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      }
+    );
 
-	try {
-		const response = await axios.delete(
-			`${BACKEND_SERVER_URL}/v1/classroom/${classroomId}/class-section/${classroomSectionId}`
-		)
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      console.error("Failed to delete classroom section. Status:", response.status, errorBody);
+      return parseServerResponse({
+        status: "ERROR",
+        message: errorBody.error || "Failed to delete classroom section",
+      });
+    }
 
-		console.debug("Successfully deleted classroom section with id: ", classroomSectionId, "with response: ", response.data)
-		revalidatePath("/dashboard/class/section")
-		return parseServerResponse({
-			status: "SUCCESS",
-			message: "Classroom Section Deleted Successfully"
-		})
-	}
-	catch (e) {
-		console.error("Failed to delete classroom section with the following error: ", e)
-		if (e instanceof AxiosError) {
-			if (e.isAxiosError) {
-				console.debug("Delete Classroom Section Error is Axios Error")
-				const errStatus = e.status
-				const responseStatusCode = e.response ? e.response.status : null
-				const responseBody = e.response ? e.response.data : null
-				console.debug("Error details : ", { errStatus, responseStatusCode, responseBody })
-			}
-		}
-	}
+    const responseData = await response.json();
+    console.debug(
+      "Successfully deleted classroom section with id:",
+      classroomSectionId,
+      "with response:",
+      responseData
+    );
+    // Invalidate cache for sections of this classroom.
+    invalidateCache(`classroom-sections-${classroomId}`);
+    revalidatePath(`/dashboard/class/${classroomId}`);
+    return parseServerResponse({
+      status: "SUCCESS",
+      message: "Classroom Section Deleted Successfully",
+    });
+  } catch (e) {
+    console.error("Failed to delete classroom section with the following error:", e);
+    return parseServerResponse({
+      status: "ERROR",
+      message: "An unexpected error occurred while deleting the classroom section",
+    });
+  }
 }
 
-export async function getClassroomSectionStudentsInfo(classroomId: string, classroomSectionId: string,
-	data:
-		{
-			startPeriod: Date,
-			endPeriod: Date,
-			activeOnly: boolean,
-		}) {
+// -------------------------------------------------------------------
+// GET REQUEST: Get classroom section students info with caching
+// -------------------------------------------------------------------
+export async function getClassroomSectionStudentsInfo(
+  classroomId: string,
+  classroomSectionId: string,
+  data: { startPeriod: Date; endPeriod: Date; activeOnly: boolean }
+) {
+  console.debug(
+    "Fetching students info for classroom id:",
+    classroomId,
+    "and classroom section id:",
+    classroomSectionId
+  );
 
-	console.debug("Classroom ID to fetch students info: ", classroomId, "Classroom Section ID to fetch students info: ", classroomSectionId)
+  if (!classroomId || !classroomSectionId) {
+    return parseServerResponse<null>({
+      status: "ERROR",
+      message: "Classroom and classroom section IDs are required",
+      data: null,
+    });
+  }
 
-	try {
-		const response = await axios.get(
-			`${BACKEND_SERVER_URL}/v1/classroom/${classroomId}/class-section/${classroomSectionId}/students`,
-			{
-				params: {
-					...data
-				}
-			}
-		)
+  const cacheKey = `classroom-section-students-${classroomId}-${classroomSectionId}-${data.startPeriod.toISOString()}-${data.endPeriod.toISOString()}-${data.activeOnly}`;
+  const cachedData = getCache<ReturnType<typeof parseServerResponse>>(cacheKey);
+  if (cachedData) {
+    console.debug("Returning cached classroom section students info for key:", cacheKey);
+    return cachedData;
+  }
 
-		console.debug("Successfully fetched classroom students info with id: ", classroomId, "with response: ", response.data)
+  try {
+    const url = new URL(
+      `${BACKEND_SERVER_URL}/v1/classroom/${classroomId}/class-section/${classroomSectionId}/students`
+    );
+    url.searchParams.append("startPeriod", data.startPeriod.toISOString());
+    url.searchParams.append("endPeriod", data.endPeriod.toISOString());
+    url.searchParams.append("activeOnly", String(data.activeOnly));
 
-		const students: classroomSectionStudentDataWithFees[] = response.data.students
+    const response = await fetch(url.toString(), {
+      headers: { "Content-Type": "application/json" },
+    });
 
-		return parseServerResponse<classroomSectionStudentDataWithFees[]>({ status: "SUCCESS", data: students, message: "Fetched Student Data" })
-	}
-	catch (e) {
-		console.error("Failed to fetch classroom students info with the following error: ", e)
-		if (e instanceof AxiosError) {
-			if (e.isAxiosError) {
-				console.debug("Fetch Classroom Students Info Error is Axios Error")
-				const errStatus = e.status
-				const responseStatusCode = e.response ? e.response.status : null
-				const responseBody = e.response ? e.response.data : null
-				console.debug("Error details : ", { errStatus, responseStatusCode, responseBody })
-				
-				return parseServerResponse<null>({
-					status: "ERROR",
-					message: "Failed to fetch students info",
-					data: null
-				})
-			}
-			
-		}
-	}
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      console.error("Failed to fetch classroom section students info. Status:", response.status, errorBody);
+      return parseServerResponse<null>({
+        status: "ERROR",
+        message: errorBody.error || "Failed to fetch classroom section students info",
+        data: null,
+      });
+    }
 
+    const responseData = await response.json();
+    const students: classroomSectionStudentDataWithFees[] = responseData.students;
+    const parsed = parseServerResponse<classroomSectionStudentDataWithFees[]>({
+      status: "SUCCESS",
+      message: "Fetched Student Data",
+      data: students,
+    });
+    // Cache for 30 seconds.
+    setCache(cacheKey, parsed, 30);
+    return parsed;
+  } catch (e) {
+    console.error("Failed to fetch classroom section students info with the following error:", e);
+    return parseServerResponse<null>({
+      status: "ERROR",
+      message: "An unexpected error occurred while fetching student info",
+      data: null,
+    });
+  }
 }
