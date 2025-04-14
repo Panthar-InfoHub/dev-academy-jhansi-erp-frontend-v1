@@ -437,6 +437,7 @@ export async function updateEnrollment(studentId: string, enrollmentId: string, 
 		)
 
 		console.log("Successfully updated student enrollment with id: ", enrollmentId, "with response: ", response.data)
+		invalidateCache(`student-enrollment-${studentId}-${enrollmentId}`)
 		revalidatePath(`/dashboard/student/${studentId}/enrollment/${enrollmentId}`)
 		return parseServerResponse<completeStudentEnrollment>({
 			status: "SUCCESS",
