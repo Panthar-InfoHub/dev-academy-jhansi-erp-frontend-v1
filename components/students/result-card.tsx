@@ -248,7 +248,7 @@ export function ResultCard({
                                 key={`term-${idx}-${subject.name}`}
                                 className="border border-gray-400 p-2 text-center font-medium text-black dark:text-black"
                               >
-                                {term ? obtainedMarks || "—" : "—"}
+                                {term ? obtainedMarks === null ? "-" : obtainedMarks : "—"}
                               </td>
                             )
                           })}
@@ -299,7 +299,7 @@ export function ResultCard({
                               key={`term-percentage-${idx}`}
                               className="border border-gray-400 p-2 text-center text-black dark:text-black"
                             >
-                              {term ? termPercentage || "—" : "—"}%
+                              {term ? termPercentage === 0 ? 0 : termPercentage : "—"}%
                             </td>
                           )
                         })}

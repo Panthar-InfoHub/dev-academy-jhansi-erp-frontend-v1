@@ -102,7 +102,10 @@ export function EditEnrollmentDialog({ enrollment, open, onOpenChange, onSuccess
             }
             return result.message || "Enrollment updated successfully"
           } else {
-            throw new Error(result?.message || "Failed to update enrollment")
+            if (result?.message) {
+              return result.message
+            }
+            throw new Error("Failed to update enrollment")
           }
         },
         error: (error) => {

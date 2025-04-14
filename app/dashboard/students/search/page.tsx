@@ -1,6 +1,7 @@
 import { auth, type customUser } from "@/auth"
 import { redirect } from "next/navigation"
 import { StudentsSearchTable } from "@/components/students/students-search-table"
+import { AddStudentDialog } from "@/components/students/add-student-dialog";
 
 export default async function StudentsSearchPage() {
   const session = await auth()

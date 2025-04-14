@@ -167,7 +167,6 @@ export async function getStudent(studentId: string) {
 export async function createNewStudent(data: createNewStudentData) {
 	console.log("Creating new student with data:", data);
 	try {
-		// POST requests can continue to use axios if desired.
 		const response = await axios.post(
 			`${BACKEND_SERVER_URL}/v1/student`,
 			{ ...data },
@@ -203,8 +202,7 @@ export async function createNewStudent(data: createNewStudentData) {
 	}
 }
 
-// Example of an update function where after a successful update the cache is invalidated.
-export async function updateStudent(studentId: string, updatedData: Partial<studentAttributes>) {
+export async function updateStudentDetails(studentId: string, updatedData: Partial<studentAttributes>) {
 	if (!studentId) {
 		return parseServerResponse({ status: "ERROR", message: "Student ID is required" });
 	}
@@ -248,59 +246,7 @@ export async function updateStudent(studentId: string, updatedData: Partial<stud
 	}
 }
 
-// ----------------------------------------------------------------------
-// Other functions (e.g., handling student payments, exams, enrollments, etc.)
-// The rest of the file remains unchanged unless additional caching
-// is needed for other GET requests.
-// ----------------------------------------------------------------------
 
-
-
-
-
-
-//Completed
-export async function updateStudentDetails(studentId: string, data: Partial<studentAttributes>) {
-	console.log("Updating student with id: ", studentId, "with data: ", data)
-	try {
-		const response = await axios.put(
-			`${BACKEND_SERVER_URL}/v1/student/${studentId}`,
-			{
-				...data
-			},
-			{
-				headers: {
-					'Content-Type': 'application/json'
-				}
-			}
-		)
-		console.debug("Successfully updated student with id: ", studentId, "with response: ", response.data)
-		return parseServerResponse<completeStudentDetails>({
-			status: "SUCCESS",
-			message: "Student Updated Successfully",
-			data: response.data.studentData
-		})
-
-	}
-	catch (e) {
-		console.error(`Failed to update student with id : ${studentId} with data : ${data}`, JSON.stringify(e))
-		if (e instanceof AxiosError) {
-			if (e.isAxiosError) {
-				console.debug("Update Student Error is Axios Error")
-				const errStatus = e.status
-				const responseStatusCode = e.response ? e.response.status : null
-				const responseBody = e.response ? e.response.data : null
-				console.error("Error details : ", JSON.stringify({ errStatus, responseStatusCode, responseBody }))
-				return parseServerResponse<null>({
-					status: "ERROR",
-					message: responseBody.error,
-					data: null
-				})
-			}
-		}
-
-	}
-}
 
 //Completed
 export async function deleteStudent(studentId: string, force: boolean = false) {
@@ -322,8 +268,8 @@ export async function deleteStudent(studentId: string, force: boolean = false) {
 		)
 
 		console.log("Successfully deleted student with id: ", studentId, "with response: ", response.data)
-		revalidatePath(`/dashboard/student/data`)
 		revalidatePath(`/dashboard/student/${studentId}`)
+		invalidateCache(`student-details-${studentId}`)
 		return parseServerResponse<null>(
 			{
 				status: "SUCCESS",
@@ -542,6 +488,7 @@ export async function deleteEnrollment(studentId: string, enrollmentId: string, 
 		
 		console.log("Successfully deleted student enrollment with id: ", enrollmentId, "with response: ", response.data)
 		revalidatePath(`/dashboard/student/${studentId}`)
+		invalidateCache(`student-enrollment-${studentId}-${enrollmentId}`)
 		return parseServerResponse<string>({
 			status: "SUCCESS",
 			message: response.data.message,
@@ -627,8 +574,6 @@ export async function payStudentFee(studentId: string, enrollmentId: string, dat
 * Exam
 * */
 
-//Only Implementation Needed
-//Completed
 export async function createExamEntry(studentId: string, enrollmentId: string, data: createExamEntryReqBody) {
 
 	console.log("Creating new exam entry for student with id: ", studentId, "with data: ", data)
@@ -648,7 +593,7 @@ export async function createExamEntry(studentId: string, enrollmentId: string, d
 		)
 
 		console.log("Successfully created exam entry for student with id: ", studentId, "with response: ", response.data)
-
+		invalidateCache(`student-enrollment-${studentId}-${enrollmentId}`)
 		return parseServerResponse<examEntry>({
 			status: "SUCCESS",
 			message: response.data.message,
@@ -678,7 +623,6 @@ export async function createExamEntry(studentId: string, enrollmentId: string, d
 
 
 }
-//Completed
 export async function updateExamEntry(studentId: string, enrollmentId: string, examEntryId: string, data: updateExamEntryReqBody) {
 	console.log("Updating exam entry for student with id: ", studentId, "enrollment id: ", enrollmentId, "with data: ", data)
 
@@ -697,7 +641,7 @@ export async function updateExamEntry(studentId: string, enrollmentId: string, e
 		)
 
 		console.log("Successfully updated exam entry for student with id: ", studentId, "enrollment id: ", enrollmentId, "with response: ", response.data)
-
+		invalidateCache(`student-enrollment-${studentId}-${enrollmentId}`)
 		return parseServerResponse<examEntry>({
 			status: "SUCCESS",
 			message: response.data.message,
@@ -740,7 +684,7 @@ export async function deleteExamEntry(studentId: string, enrollmentId: string, e
 		)
 
 		console.log("Successfully deleted exam entry : ", examEntryId, "in enrollment : ", enrollmentId, "for student : ", studentId, "with response: ", response.data)
-
+		invalidateCache(`student-enrollment-${studentId}-${enrollmentId}`)
 		return parseServerResponse<number>({
 			status: "SUCCESS",
 			message: response.data.message,
@@ -822,6 +766,13 @@ export async function getStudentPaymentsInfo(studentId: string, limit: number = 
 
 	console.log("Fetching student payments info for student: ", studentId)
 	
+	const cacheKey = `student-payments-info-${studentId}`
+	const cachedData = getCache(cacheKey)
+	if (cachedData) {
+		console.debug("Returning cached student payments info for key:", cacheKey)
+		return cachedData as serverResponseParserArguments<StudentPaymentsResponse>
+	}
+	
 	try {
 		const response = await axios.get (
 			`${BACKEND_SERVER_URL}/v1/student/${studentId}/payments`,
@@ -833,7 +784,7 @@ export async function getStudentPaymentsInfo(studentId: string, limit: number = 
 			}
 		)
 		const responseData = response.data as StudentPaymentsResponse
-		
+		setCache(cacheKey, responseData, 10) // 10 seconds
 		return parseServerResponse<StudentPaymentsResponse>({
 			status: "SUCCESS",
 			message: responseData.message,

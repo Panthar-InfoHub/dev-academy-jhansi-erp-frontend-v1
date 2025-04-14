@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
-import { Copy, ExternalLink, RefreshCw, Search, Trash2 } from "lucide-react"
+import { Copy, ExternalLink, Plus, RefreshCw, Search, Trash2 } from "lucide-react"
 import { searchStudents, deleteStudent } from "@/lib/actions/student"
 import {
   AlertDialog,
@@ -26,6 +26,7 @@ import { format } from "date-fns"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { completeStudentDetails } from "@/types/student";
 import { completeEmployeeAttributes } from "@/types/employee";
+import { AddStudentDialog } from "@/components/students/add-student-dialog";
 
 export function StudentsSearchTable() {
   const router = useRouter()
@@ -37,6 +38,7 @@ export function StudentsSearchTable() {
   const [totalCount, setTotalCount] = useState(0)
   const [studentToDelete, setStudentToDelete] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [addStudentDialogOpen, setAddStudentDialogOpen] = useState(false)
 
   // Function to truncate ID for display
   const truncateId = (id: string) => {
@@ -115,7 +117,15 @@ export function StudentsSearchTable() {
 
   return (
     <Card>
-      <CardHeader>{/* Title removed as requested */}</CardHeader>
+      <CardHeader>
+        <div className="flex justify-end items-center mb-6">
+       <Button onClick={() => setAddStudentDialogOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add Student
+        </Button>
+      </div>
+      
+      </CardHeader>
       <CardContent>
         <div className="space-y-4">
           <form onSubmit={handleSearch} className="flex gap-2">
@@ -296,6 +306,14 @@ export function StudentsSearchTable() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {/* Add Student Dialog */}
+      <AddStudentDialog
+        open={addStudentDialogOpen}
+        onOpenChange={setAddStudentDialogOpen}
+        onSuccess={(newStudentId) => {
+          router.push(`/dashboard/student/${newStudentId}`)
+        }}
+      />
     </Card>
   )
 }
