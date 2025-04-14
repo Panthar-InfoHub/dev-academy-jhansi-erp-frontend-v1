@@ -81,23 +81,7 @@ export function ProfileAttendance({ employeeId }: ProfileAttendanceProps) {
   }
 }, [isLoading]);
 
-
-  // Function to determine day color based on attendance
-  const getDayClassNames = (date: Date) => {
-    const dateStr = format(date, "yyyy-MM-dd")
-    const attendance = attendanceData.find((a) => {
-      const attendanceDate = typeof a.date === "string" ? a.date.split("T")[0] : format(new Date(a.date), "yyyy-MM-dd")
-      return attendanceDate === dateStr
-    })
-
-    if (!attendance) return undefined
-
-    if (attendance.isHoliday) return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-    if (attendance.isLeave) return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-    if (attendance.isPresent) return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-    return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-  }
-
+  
   return (
     <div className="space-y-6">
       <Card>
@@ -234,7 +218,7 @@ export function ProfileAttendance({ employeeId }: ProfileAttendanceProps) {
                       </td>
                       <td className="py-2 px-4">
                         {attendance.isHoliday ? (
-                          <Badge variant="secondary" className={"bg-blue-800"}>Holiday</Badge>
+                          <Badge variant="secondary" className={"bg-blue-500 text-white"}>Holiday</Badge>
                         ) : attendance.isLeave ? (
                           <Badge
                             variant="outline"
