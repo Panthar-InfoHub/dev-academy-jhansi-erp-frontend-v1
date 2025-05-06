@@ -32,6 +32,8 @@ export default async function VehicleDetailPage({ params }: VehicleDetailPagePro
   if (!vehicleResponse?.data) {
     notFound()
   }
+  
+  
 
   return (
     <div className="container mx-auto">

@@ -1,13 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import type { completeVehicleDetails } from "@/types/vehicle"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { toast } from "sonner"
 import { ArrowLeft, Pencil, Trash2, Copy } from "lucide-react"
-import { deleteVehicle } from "@/lib/actions/vehicle"
+import { deleteVehicle, getVehicle } from "@/lib/actions/vehicle"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +22,7 @@ import {
 import { format } from "date-fns"
 import { EditVehicleDialog } from "./edit-vehicle-dialog"
 import { VehicleMapPlaceholder } from "./vehicle-map-placeholder"
+import { GoogleMap, MarkerF, useJsApiLoader } from "@react-google-maps/api";
 
 interface VehicleDetailProps {
   vehicle: completeVehicleDetails
@@ -33,6 +34,22 @@ export function VehicleDetail({ vehicle: initialVehicle }: VehicleDetailProps) {
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
+  
+  useEffect(() => {
+  const intervalId = setInterval(() => {
+    getVehicle(vehicle.id)
+      .then((res) => {
+        const data = res.data;
+        console.log("Location updated!", data);
+        setVehicle((prev) => ({ ...prev, ...data }));
+      })
+      .catch(() => {
+        toast.error("Failed to update Vehicle Details");
+      });
+  }, 10000); // Update every 10 seconds
+
+  return () => clearInterval(intervalId);
+}, [vehicle.id]);
 
   const handleDeleteVehicle = async () => {
     setIsDeleting(true)
@@ -64,7 +81,12 @@ export function VehicleDetail({ vehicle: initialVehicle }: VehicleDetailProps) {
     setVehicle(updatedVehicle)
     toast.success("Vehicle updated successfully")
   }
-
+  
+  const {isLoaded} = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
+  })
+  
   return (
     <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
       {/* Sidebar - Left Column */}
@@ -160,11 +182,24 @@ export function VehicleDetail({ vehicle: initialVehicle }: VehicleDetailProps) {
             <CardTitle>Vehicle Location</CardTitle>
           </CardHeader>
           <CardContent>
-            <VehicleMapPlaceholder
+            {isLoaded ? (
+              <GoogleMap
+                mapContainerClassName={"w-full h-[500px] bg-muted/30 rounded-lg border border-dashed flex flex-col items-center justify-center p-6"}
+        
+            center={{ lat: vehicle.latest_lat, lng: vehicle.latest_long }}
+            zoom={11}
+            >
+              <MarkerF position={{lat: vehicle.latest_lat, lng: vehicle.latest_long}}  />
+            </GoogleMap>
+            ) : (
+              <VehicleMapPlaceholder
               lat={vehicle.latest_lat}
               long={vehicle.latest_long}
               vehicleNumber={vehicle.vehicleNumber}
             />
+            )}
+            
+            
           </CardContent>
         </Card>
       </div>
