@@ -9,25 +9,26 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner"
 import { ExternalLink, Receipt, RefreshCw, ChevronDown } from "lucide-react"
 import { getPayments } from "@/lib/actions/analytics"
-import { getAllSectionsOfClassroom } from "@/lib/actions/classroom"
+import { getAllSectionsOfClassroom, getClassroomDetails } from "@/lib/actions/classroom"
 import { format, subDays } from "date-fns"
 import { useRouter } from "next/navigation"
 import { PaymentReceiptDialog } from "@/components/students/payment-receipt-dialog"
 import { Checkbox } from "@/components/ui/checkbox"
 import { EnhancedCalendar } from "@/components/custom/date/calandar-pickup"
 import ClassroomCache from "@/lib/cache/classroom-cache"
-import type { completeClassDetails } from "@/types/classroom"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { PaymentsInfoResponse } from "@/types/analytics";
+import { PaymentInfo, PaymentsInfoResponse } from "@/types/analytics";
+import { getEnrollmentDetails, getStudent } from "@/lib/actions/student";
 
 // Type for enrollment details with class and section info
 type EnrollmentDetails = {
+  studentName: string;
   className: string
   sectionName: string
 }
 
 export default function PaymentsPage() {
-  const [payments, setPayments] = useState([])
+  const [payments, setPayments] = useState<PaymentsInfoResponse["payments"]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [page, setPage] = useState(1)
   const [limit, setLimit] = useState(10)
@@ -36,7 +37,6 @@ export default function PaymentsPage() {
   const [selectedPayment, setSelectedPayment] = useState(null)
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false)
   const [enrollmentDetails, setEnrollmentDetails] = useState<Record<string, EnrollmentDetails>>({})
-  const router = useRouter()
   const cache = ClassroomCache.getInstance()
 
   const today = new Date()
@@ -61,7 +61,7 @@ export default function PaymentsPage() {
         setTotalPages(Math.ceil((result.data as PaymentsInfoResponse).count / limit) || 1)
 
         // Fetch class and section details for each payment
-        fetchEnrollmentDetails((result.data as PaymentsInfoResponse).payments || [])
+        fetchEnrollmentDetailsWithCaching((result.data as PaymentsInfoResponse).payments || [])
       } else {
         toast.error(result?.message || "Failed to fetch payments")
       }
@@ -73,7 +73,7 @@ export default function PaymentsPage() {
     }
   }
 
-  async function fetchEnrollmentDetails(paymentsData: any[]) {
+  async function fetchEnrollmentDetailsWithCaching(paymentsData: PaymentsInfoResponse["payments"]) {
     // Create a unique set of enrollment IDs to fetch
     const enrollmentIds = [...new Set(paymentsData.map((payment) => payment.enrollmentId))]
 
@@ -92,44 +92,32 @@ export default function PaymentsPage() {
       }
 
       try {
-        // For each payment, we need to find the classroom and section
-        // This is a simplified approach - in a real app, you might need to fetch
-        // the enrollment details first to get the classroom and section IDs
-
+        
         // Find a payment with this enrollment ID to get the student ID
         const payment = paymentsData.find((p) => p.enrollmentId === enrollmentId)
         if (!payment) continue
 
         // Fetch all classrooms
-        const classrooms = await getAllClassrooms()
-        if (!classrooms) continue
-
-        // For each classroom, fetch sections and check if any section has this enrollment
-        let found = false
-        for (const classroom of classrooms) {
-          if (found) break
-
-          const sections = await getAllSectionsOfClassroom(classroom.id)
-          if (!sections) continue
-
-          for (const section of sections) {
-            // Check if this section has the enrollment
-            // This is a simplified approach - in a real app, you would query the backend
-            // to find which section contains this enrollment
-
-            // For now, we'll just use the first classroom and section as a placeholder
-            details[enrollmentId] = {
-              className: classroom.name,
-              sectionName: section.name,
-            }
-
-            // Cache the result
-            cache.set(cacheKey, details[enrollmentId])
-
-            found = true
-            break
+        const student = await getStudent(payment.studentId)
+        const enrollmentData = await getEnrollmentDetails(payment.studentId, payment.enrollmentId)
+        const classroomData = await getClassroomDetails(enrollmentData.data.classroomId)
+        const sectionData = await getAllSectionsOfClassroom(enrollmentData.data.classroomId)
+        const section = sectionData.find((s) => s.id === enrollmentData.data.classroomSectionId)
+        
+        if ( "name" in classroomData ) {
+          details[enrollmentId] = {
+            studentName: student.data.name,
+            className: classroomData.name!,
+            sectionName: section.name,
           }
         }
+
+        // Cache the result
+            cache.set(cacheKey, details[enrollmentId])
+        
+        break
+        
+        
       } catch (error) {
         console.error(`Error fetching details for enrollment ${enrollmentId}:`, error)
       }
@@ -140,47 +128,27 @@ export default function PaymentsPage() {
 
   // Helper function to get classroom and section names
   const getEnrollmentInfo = (enrollmentId: string) => {
-    return enrollmentDetails[enrollmentId] || { className: "Loading...", sectionName: "Loading..." }
+    return enrollmentDetails[enrollmentId] || { className: "Loading...", sectionName: "Loading...", studentName: "Loading..." }
   }
 
-  const showPaymentReceipt = (payment: any) => {
+  const showPaymentReceipt = (payment: PaymentInfo) => {
     const info = getEnrollmentInfo(payment.enrollmentId)
 
     // Add class and section info to the payment object
+    
+    
     const paymentWithDetails = {
       ...payment,
+      studentName: info.studentName,
       className: info.className,
       sectionName: info.sectionName,
     }
+    
 
     setSelectedPayment(paymentWithDetails)
     setReceiptDialogOpen(true)
   }
-
-  // Helper function to get all classrooms (with caching)
-  async function getAllClassrooms(): Promise<completeClassDetails[] | null> {
-    const cacheKey = "all_classrooms"
-    const cachedClassrooms = cache.get<completeClassDetails[]>(cacheKey)
-
-    if (cachedClassrooms) {
-      return cachedClassrooms
-    }
-
-    try {
-      // Import the function dynamically to avoid circular dependencies
-      const { getAllClassrooms } = await import("@/lib/actions/classroom")
-      const classrooms = await getAllClassrooms()
-
-      if (classrooms) {
-        cache.set(cacheKey, classrooms)
-        return classrooms
-      }
-    } catch (error) {
-      console.error("Error fetching classrooms:", error)
-    }
-
-    return null
-  }
+  
 
   return (
     <div className="container mx-auto">
