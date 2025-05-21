@@ -4,10 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build && npm run sentry:sourcemaps",
+    "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "sentry:sourcemaps": "sentry-cli sourcemaps inject --org raj-dwivedi --project school-erp-v0-frontend-dev-academey .next && sentry-cli sourcemaps upload --org raj-dwivedi --project school-erp-v0-dev-academey .next"
+    "lint": "next lint"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.7",
@@ -25,8 +24,6 @@
     "@radix-ui/react-tabs": "^1.1.4",
     "@radix-ui/react-tooltip": "^1.2.0",
     "@react-google-maps/api": "^2.20.6",
-    "@sentry/cli": "^2.43.0",
-    "@sentry/nextjs": "^9.12.0",
     "axios": "^1.8.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

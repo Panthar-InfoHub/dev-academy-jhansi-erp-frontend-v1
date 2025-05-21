@@ -11,11 +11,8 @@ import type { AttendanceDetailEntry } from "@/types/employee"
 import { useRouter } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import { CHECK_IN_LAT, CHECK_IN_LNG, CHECK_IN_RADIUS } from "@/env";
 
-// Declare the variables
-const CHECK_IN_LAT = process.env.NEXT_PUBLIC_CHECK_IN_LAT
-const CHECK_IN_LNG = process.env.NEXT_PUBLIC_CHECK_IN_LNG
-const CHECK_IN_RADIUS = process.env.NEXT_PUBLIC_CHECK_IN_RADIUS
 
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   console.log("Calculating distance between coordinates:", { lat1, lon1, lat2, lon2 })
