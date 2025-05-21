@@ -16,20 +16,6 @@ COPY . .
 # Build the application
 RUN npm run build
 
-# Production image
-FROM node:18-alpine AS production
-
-# Set working directory
-WORKDIR /app
-
-# Copy necessary files from the builder stage
-COPY --from=base /app/package*.json ./
-COPY --from=base /app/.next ./.next
-COPY --from=base /app/public ./public
-
-# Install only production dependencies
-RUN npm install --force --only=production
-
 # Expose port
 EXPOSE 3000
 
