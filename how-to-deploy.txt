@@ -1,0 +1,8 @@
+create a .env.local file with the following keys:
+
+AUTH_SECRET
+NEXT_PUBLIC_BACKEND_SERVER_URL=
+NEXT_PUBLIC_CHECK_IN_LAT="89.000000000000"
+NEXT_PUBLIC_CHECK_IN_LNG="89.000000000000"
+NEXT_PUBLIC_CHECK_IN_RADIUS="500" // in meters
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY="xxxxxxxxxxxxxxxxxxxxxxxx" // API Keys in Google Cloud with Maps API access
