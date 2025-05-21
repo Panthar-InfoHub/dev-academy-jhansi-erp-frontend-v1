@@ -1,6 +1,6 @@
 runtime: nodejs20
 
-service: "default"
+service: "dev-academy-jhansi-school-erp-v1"
 
 # Set resources and scaling
 instance_class: F1
