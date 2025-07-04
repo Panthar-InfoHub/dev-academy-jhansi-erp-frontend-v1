@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { motion } from "framer-motion"
+import {motion, Variant, Variants} from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { getDashboardAnalytics } from "@/lib/actions/dashboard"
 import {
@@ -135,7 +135,7 @@ export default function DashboardPage() {
     },
   }
 
-  const itemVariants = {
+  const itemVariants : Variants = {
     hidden: { y: 20, opacity: 0 },
     visible: {
       y: 0,
@@ -148,7 +148,7 @@ export default function DashboardPage() {
     },
   }
 
-  const chartVariants = {
+  const chartVariants: Variants = {
     hidden: { opacity: 0, scale: 0.95 },
     visible: {
       opacity: 1,

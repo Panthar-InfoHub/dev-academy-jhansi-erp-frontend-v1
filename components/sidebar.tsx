@@ -38,7 +38,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { cn } from "@/lib/utils"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Collapsible, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { motion, AnimatePresence } from "framer-motion"
+import {motion, AnimatePresence, Variants} from "framer-motion"
 
 interface SidebarProps {
   user: customUser
@@ -355,13 +355,13 @@ export function SidebarNav({ user }: SidebarProps) {
   }
 
   // Animation variants for sidebar
-  const sidebarVariants = {
+  const sidebarVariants: Variants = {
     expanded: { width: "220px", transition: { duration: 0.3, ease: "easeInOut" } },
     collapsed: { width: "60px", transition: { duration: 0.3, ease: "easeInOut" } },
   }
 
   // Animation variants for content that appears/disappears
-  const contentVariants = {
+  const contentVariants: Variants = {
     visible: {
       opacity: 1,
       x: 0,
@@ -394,7 +394,7 @@ export function SidebarNav({ user }: SidebarProps) {
   }
 
   // Animation variants for child items
-  const childItemVariants = {
+  const childItemVariants: Variants = {
     open: {
       height: "auto",
       opacity: 1,
