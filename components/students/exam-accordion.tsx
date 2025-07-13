@@ -13,7 +13,7 @@ interface ExamAccordionProps {
   term: string
   exams: examEntry[]
   onUpdateExam: (exam: examEntry) => void
-  onDeleteExam: (examId: string, examName: string) => void
+  onDeleteExam: (exam: examEntry) => void
 }
 
 export function ExamAccordion({ term, exams, onUpdateExam, onDeleteExam }: ExamAccordionProps) {
@@ -86,7 +86,7 @@ export function ExamAccordion({ term, exams, onUpdateExam, onDeleteExam }: ExamA
                 className="text-red-600 hover:bg-red-50 hover:text-red-700"
                 onClick={(e) => {
                   e.stopPropagation()
-                  onDeleteExam(exam.examEntryId, exam.examName)
+                  onDeleteExam(exam)
                 }}
               >
                 <Trash2 className="h-4 w-4" />

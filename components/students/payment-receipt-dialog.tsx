@@ -16,6 +16,8 @@ interface PaymentReceiptDialogProps {
   studentName: string
   className?: string
   sectionName?: string
+  startingMonth?: Date
+  endingMonth?: Date
 }
 
 export function PaymentReceiptDialog({
@@ -25,9 +27,12 @@ export function PaymentReceiptDialog({
   studentName,
   className,
   sectionName,
+  startingMonth,
+  endingMonth,
 }: PaymentReceiptDialogProps) {
   const [isDownloading, setIsDownloading] = useState(false)
   const receiptRef = useRef<HTMLDivElement>(null)
+
 
   const handleDownload = useCallback(() => {
     console.log("Download button clicked")
@@ -42,7 +47,7 @@ export function PaymentReceiptDialog({
 
     // Create a short receipt ID for the filename
     const shortId = payment?.id ? payment.id.substring(0, 8) : "receipt"
-    const filename = `${studentName ? `${studentName}-`: "" }${payment.id}-${className}-${sectionName}.png`
+    const filename = `${studentName ? `${studentName}-` : ""}${payment.id}-${className}-${sectionName}.png`
 
     toPng(receiptRef.current, {
       cacheBust: true,
@@ -64,7 +69,22 @@ export function PaymentReceiptDialog({
       .finally(() => {
         setIsDownloading(false)
       })
-  }, [payment])
+  }, [payment, studentName, className, sectionName])
+
+  const formatMonthRange = () => {
+    if (!startingMonth) {
+      return null
+    }
+
+    const start = format(startingMonth, "MMMM yyyy")
+
+    if (endingMonth && format(endingMonth, "MMMM yyyy") !== start) {
+      const end = format(endingMonth, "MMMM yyyy")
+      return `${start} - ${end}`
+    }
+
+    return start
+  }
 
   if (!payment) return null
 
@@ -96,6 +116,12 @@ export function PaymentReceiptDialog({
               <span className="font-medium text-black">Section:</span>
               <span className="text-black">{sectionName || "N/A"}</span>
             </div>
+            {startingMonth && (
+              <div className="flex justify-between mb-2">
+                <span className="font-medium text-black">Fee for Month(s):</span>
+                <span className="text-black">{formatMonthRange()}</span>
+              </div>
+            )}
           </div>
 
           <div className="border-t border-b py-4 my-4">

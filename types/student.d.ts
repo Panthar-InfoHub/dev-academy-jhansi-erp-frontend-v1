@@ -152,7 +152,8 @@ export interface feePayment {
 	createdAt: Date,
 	updatedAt: Date,
 	student: completeStudentDetails | undefined,
-	studentEnrollment: completeStudentEnrollment | undefined
+	studentEnrollment: completeStudentEnrollment | undefined,
+	monthlyFeeIds: string[],
 }
 
 export interface createExamEntryReqBody {

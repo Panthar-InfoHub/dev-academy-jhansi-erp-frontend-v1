@@ -10,7 +10,6 @@ import { format, subMonths, startOfDay, endOfDay } from "date-fns"
 import type { AttendanceDetailEntry } from "@/types/employee.d"
 import { Badge } from "@/components/ui/badge"
 import { Loader2, RefreshCw } from "lucide-react"
-import { getCache, setCache } from "@/lib/cache"
 
 interface ProfileAttendanceProps {
   employeeId: string
@@ -34,18 +33,6 @@ export function ProfileAttendance({ employeeId }: ProfileAttendanceProps) {
   const fetchAttendance = async (forceRefresh = false) => {
     setIsLoading(true)
 
-    const cacheKey = getCacheKey(employeeId, startDate, endDate)
-    
-    // Check the cache first unless force refresh is requested
-    if (!forceRefresh) {
-      const cachedData = getCache<AttendanceDetailEntry[]>(cacheKey)
-      if (cachedData) {
-        setAttendanceData(cachedData)
-        setIsLoading(false)
-        setInitialized(true)
-        return
-      }
-    }
 
     try {
       const result = await getEmployeeAttendance(employeeId, startOfDay(startDate), endOfDay(endDate))
@@ -55,8 +42,6 @@ export function ProfileAttendance({ employeeId }: ProfileAttendanceProps) {
         const attendanceArray = result.data || []
         setAttendanceData(attendanceArray)
 
-        // Cache the result for 5 minutes (300 seconds)
-        setCache(cacheKey, attendanceArray, 60)
 
         toast.success("Attendance data loaded successfully")
       } else {

@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import type { completeStudentEnrollment, monthlyFeeEntry, examEntry } from "@/types/student"
+import type {completeStudentEnrollment, monthlyFeeEntry, examEntry, feePayment} from "@/types/student"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { format, isBefore, isAfter } from "date-fns"
+import { format, isBefore, isAfter, isSameDay } from "date-fns"
 import { toast } from "sonner"
 import {
   ArrowLeft,
@@ -66,7 +66,7 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
   })
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [payFeesDialogOpen, setPayFeesDialogOpen] = useState(false)
-  const [selectedPayment, setSelectedPayment] = useState<any>(null)
+  const [selectedPayment, setSelectedPayment] = useState<feePayment>(null)
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false)
   const [enrollmentData, setEnrollmentData] = useState<completeStudentEnrollment>(enrollment)
   const [allFeesPaid, setAllFeesPaid] = useState(false)
@@ -75,11 +75,13 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
   const [selectedExam, setSelectedExam] = useState<examEntry | null>(null)
   const [isLoadingExams, setIsLoadingExams] = useState(false)
   const [examsByTerm, setExamsByTerm] = useState<Record<string, examEntry[]>>({})
-  const [examToDelete, setExamToDelete] = useState<{ examId: string; examName: string } | null>(null)
+  const [examToDelete, setExamToDelete] = useState<examEntry | null>(null)
   const [isDeletingExam, setIsDeletingExam] = useState(false)
   const [resetDialogOpen, setResetDialogOpen] = useState(false)
   const [isResetting, setIsResetting] = useState(false)
   const [newFeeAmount, setNewFeeAmount] = useState<number | undefined>(undefined)
+  const [receiptStartingMonth, setReceiptStartingMonth] = useState<Date | undefined>()
+  const [receiptEndingMonth, setReceiptEndingMonth] = useState<Date | undefined>()
 
   // Get student initials for avatar
   const studentName = enrollmentData.student?.name || "Student"
@@ -136,6 +138,33 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
       organizeExamsByTerm(enrollmentData.examDetails)
     }
   }, [enrollmentData.examDetails])
+
+  useEffect(() => {
+    navigator.clipboard.writeText(JSON.stringify(enrollment, null, 2))
+  }, []);
+
+  useEffect(() => {
+
+    if (selectedPayment && selectedPayment.monthlyFeeIds) {
+      // Directly find the relevant fees using the IDs provided by the backend.
+      const relevantFees = sortedMonthlyFees.filter((fee) =>
+          selectedPayment.monthlyFeeIds.includes(fee.id)
+      )
+
+      if (relevantFees.length > 0) {
+        const dueDates = relevantFees.map((fee) => new Date(fee.dueDate))
+        const startingMonth = new Date(Math.min(...dueDates.map((d) => d.getTime())))
+        const endingMonth = new Date(Math.max(...dueDates.map((d) => d.getTime())))
+        setReceiptStartingMonth(startingMonth)
+        setReceiptEndingMonth(endingMonth)
+      } else {
+        // Reset if no associated fees are found
+        setReceiptStartingMonth(undefined)
+        setReceiptEndingMonth(undefined)
+      }
+    }
+  }, [selectedPayment, sortedMonthlyFees])
+
 
   const organizeExamsByTerm = (exams: examEntry[]) => {
     const groupedExams: Record<string, examEntry[]> = {}
@@ -224,9 +253,9 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
 
     setIsDeletingExam(true)
 
-    console.log("Deleting exam:", examToDelete.examId)
+    console.log("Deleting exam:", examToDelete.examEntryId)
 
-    toast.promise(deleteExamEntry(studentId, enrollmentData.id, examToDelete.examId), {
+    toast.promise(deleteExamEntry(studentId, enrollmentData.id, examToDelete.examEntryId), {
       loading: "Deleting exam...",
       success: (result) => {
         if (result?.status === "SUCCESS") {
@@ -895,7 +924,7 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
                       term={term}
                       exams={exams}
                       onUpdateExam={handleUpdateExam}
-                      onDeleteExam={(examId, examName) => setExamToDelete({ examId, examName })}
+                      onDeleteExam={(exam) => setExamToDelete(exam)}
                     />
                   ))}
                 </div>
@@ -951,14 +980,18 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
         studentId={studentId}
       />
 
-      <PaymentReceiptDialog
-        open={receiptDialogOpen}
-        onOpenChange={setReceiptDialogOpen}
-        payment={selectedPayment}
-        studentName={studentName}
-        className={enrollmentData.classRoom?.name}
-        sectionName={enrollmentData.classSection?.name}
-      />
+      {selectedPayment && (
+          <PaymentReceiptDialog
+              open={receiptDialogOpen}
+              onOpenChange={setReceiptDialogOpen}
+              payment={selectedPayment}
+              studentName={enrollmentData.student?.name || ""}
+              className={enrollmentData.classRoom?.name}
+              sectionName={enrollmentData.classSection?.name}
+              startingMonth={receiptStartingMonth}
+              endingMonth={receiptEndingMonth}
+          />
+      )}
 
       <CreateExamDialog
         open={createExamDialogOpen}
