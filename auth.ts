@@ -116,6 +116,7 @@ async function handleEmployeeLogin(email: string, password: string): Promise<str
       return null
     }
 
+
     console.debug("Login successful:", JSON.stringify(response.data, null, 2))
 
     return response.data.token as string
