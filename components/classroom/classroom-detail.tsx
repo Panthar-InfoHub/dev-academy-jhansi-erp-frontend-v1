@@ -100,7 +100,7 @@ export function ClassroomDetail({ classroom, sections: initialSections }: Classr
   const [newSection, setNewSection] = useState({
     name: "",
     isActive: true,
-    defaultFee: 0,
+    defaultFee: 300,
     subjects: [
       {
         name: "",
@@ -755,7 +755,7 @@ export function ClassroomDetail({ classroom, sections: initialSections }: Classr
                 New Section
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px] max-h-[80vh]">
+            <DialogContent className="sm:max-w-[800px] max-h-[80vh]">
               <DialogHeader>
                 <DialogTitle>Add New Section</DialogTitle>
                 <DialogDescription>Enter the details to create a new section for {classroom.name}.</DialogDescription>

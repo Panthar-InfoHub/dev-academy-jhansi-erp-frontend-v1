@@ -10,6 +10,7 @@ export interface studentAttributes {
 	motherName: string,
 	motherPhone: string | undefined,
 	dateOfBirth: Date,
+	UDISECode: string,
 	classId: string,
 	classSectionId: string,
 	ids: identityEntry[],
@@ -60,6 +61,7 @@ export interface createNewStudentData extends Partial<completeStudentDetails> {
 	fatherPhone: string | undefined,
 	motherName: string,
 	motherPhone: string | undefined,
+	UDISECode: string
 	dateOfBirth: Date,
 	ids: identityEntry[],
 	isActive: boolean,

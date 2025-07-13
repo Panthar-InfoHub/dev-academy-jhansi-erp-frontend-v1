@@ -44,6 +44,7 @@ export function EditStudentDialog({ student, open, onOpenChange, onSuccess }: Ed
     motherName: student.motherName || "",
     motherPhone: "",
     isActive: student.isActive,
+    UDISECode: student.UDISECode,
   })
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -174,6 +175,19 @@ export function EditStudentDialog({ student, open, onOpenChange, onSuccess }: Ed
                     />
                     <Label htmlFor="isActive">Active Student</Label>
                   </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="UDISECode">UDISE Code</Label>
+                    <Input
+                        id="UDISECode"
+                        name="UDISECode"
+                        value={formData.UDISECode}
+                        onChange={handleInputChange}
+                        placeholder="UDISE Code"
+                    />
+                    {formErrors.UDISECode && <p className="text-sm text-red-500">{formErrors.UDISECode}</p>}
+                  </div>
+
                 </div>
 
                 <div className="flex justify-end">

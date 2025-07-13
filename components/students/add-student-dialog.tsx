@@ -45,6 +45,7 @@ export function AddStudentDialog({ open, onOpenChange, onSuccess }: AddStudentDi
     dateOfBirth: new Date(),
     ids: [] as identityEntry[],
     isActive: true,
+    UDISECode: ""
   })
 
   // ID document form state
@@ -117,6 +118,7 @@ export function AddStudentDialog({ open, onOpenChange, onSuccess }: AddStudentDi
       dateOfBirth: new Date(),
       ids: [],
       isActive: true,
+      UDISECode: "",
     })
     setFormErrors({})
     setActiveTab("basic")
@@ -225,6 +227,18 @@ export function AddStudentDialog({ open, onOpenChange, onSuccess }: AddStudentDi
                       onSelect={(date) => date && setNewStudent((prev) => ({ ...prev, dateOfBirth: date }))}
                     />
                     {formErrors.dateOfBirth && <p className="text-sm text-red-500">{formErrors.dateOfBirth}</p>}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="UDISECode">UDISE Code</Label>
+                    <Input
+                        id="UDISECode"
+                        name="UDISECode"
+                        value={newStudent.UDISECode}
+                        onChange={handleInputChange}
+                        placeholder="UDISE Code"
+                    />
+                    {formErrors.UDISECode && <p className="text-sm text-red-500">{formErrors.UDISECode}</p>}
                   </div>
 
                   <div className="flex items-center space-x-2">
