@@ -87,13 +87,15 @@ export function EditStudentDialog({ student, open, onOpenChange, onSuccess }: Ed
       toast.promise(updateStudentDetails(student.id, formData), {
         loading: "Updating student...",
         success: (result) => {
-          if (result?.status === "SUCCESS" && result.data) {
+          if (result?.status === "SUCCESS") {
             onOpenChange(false)
             if (onSuccess) {
-              onSuccess(result.data)
+              window.location.reload()
             }
             return "Student updated successfully"
-          } else {
+          }
+          else {
+            alert(JSON.stringify(result))
             throw new Error(result?.message || "Failed to update student")
           }
         },
