@@ -7,13 +7,13 @@ import {
   monthlyFeeEntry,
   examEntry,
   feePayment,
-  completeStudentDetails
+
 } from "@/types/student"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { format, isBefore, isAfter, isSameDay } from "date-fns"
+import { format, isBefore, isAfter } from "date-fns"
 import { toast } from "sonner"
 import {
   ArrowLeft,

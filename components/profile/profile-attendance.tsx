@@ -20,17 +20,12 @@ export function ProfileAttendance({ employeeId }: ProfileAttendanceProps) {
   const [endDate, setEndDate] = useState<Date>(new Date())
   const [isLoading, setIsLoading] = useState(false)
   const [attendanceData, setAttendanceData] = useState<AttendanceDetailEntry[]>([])
-  const [initialized, setInitialized] = useState(false)
-  
+
   const initialFetchRef = useRef(false);
 
-  
-  // Create a cache key based on employee ID and date range
-  const getCacheKey = (empId: string, start: Date, end: Date) => {
-    return `attendance_${empId}_${format(start, "yyyy-MM-dd")}_${format(end, "yyyy-MM-dd")}`
-  }
 
-  const fetchAttendance = async (forceRefresh = false) => {
+
+  const fetchAttendance = async () => {
     setIsLoading(true)
 
 
@@ -54,7 +49,6 @@ export function ProfileAttendance({ employeeId }: ProfileAttendanceProps) {
       setAttendanceData([])
     } finally {
       setIsLoading(false)
-      setInitialized(true)
     }
   }
 
@@ -138,7 +132,7 @@ export function ProfileAttendance({ employeeId }: ProfileAttendanceProps) {
             </div>
           </div>
 
-          <Button onClick={() => fetchAttendance(true)} disabled={isLoading} className="w-full">
+          <Button onClick={() => fetchAttendance()} disabled={isLoading} className="w-full">
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
