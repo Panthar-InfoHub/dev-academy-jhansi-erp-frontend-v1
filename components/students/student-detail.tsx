@@ -293,8 +293,8 @@ export function StudentDetail({ student }: StudentDetailProps) {
                 </Button>
               </div>
               <div className="flex items-center gap-2 mt-1">
-                <span className="text-sm text-muted-foreground">ID: {studentData.UDISECode}</span>
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleCopyId(studentData.id)}>
+                <span className="text-sm text-muted-foreground">UDISE Code: {studentData.UDISECode}</span>
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleCopyId(studentData.UDISECode)}>
                   <Copy className="h-3.5 w-3.5"/>
                 </Button>
               </div>

@@ -103,13 +103,7 @@ export async function getStudent(studentId: string) {
 	}
 	
 	// Create a unique cache key for the student.
-	const cacheKey = `student-details-${studentId}`;
-	const cachedData = getCache<serverResponseParserArguments<completeStudentDetails>>(cacheKey);
-	if (cachedData) {
-		console.debug("Returning cached student data for key:", cacheKey);
-		return cachedData;
-	}
-	
+
 	try {
 		const url = `${BACKEND_SERVER_URL}/v1/student/${studentId}`;
 		
@@ -131,16 +125,12 @@ export async function getStudent(studentId: string) {
 		}
 		
 		const data = await response.json();
-		
-		const parsedResponse = parseServerResponse<completeStudentDetails>({
+
+		return parseServerResponse<completeStudentDetails>({
 			status: "SUCCESS",
 			message: "Student Fetched Successfully",
 			data: data.student
 		});
-		
-		// Cache the student data for 30 seconds.
-		setCache(cacheKey, parsedResponse, 30);
-		return parsedResponse;
 	} catch (e: any) {
 		console.error(`Failed to get student with id: ${studentId}`, e);
 		if (e instanceof AxiosError && e.isAxiosError) {

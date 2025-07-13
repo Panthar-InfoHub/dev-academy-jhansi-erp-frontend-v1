@@ -2,7 +2,13 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import type {completeStudentEnrollment, monthlyFeeEntry, examEntry, feePayment} from "@/types/student"
+import {
+  completeStudentEnrollment,
+  monthlyFeeEntry,
+  examEntry,
+  feePayment,
+  completeStudentDetails
+} from "@/types/student"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -82,6 +88,7 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
   const [newFeeAmount, setNewFeeAmount] = useState<number | undefined>(undefined)
   const [receiptStartingMonth, setReceiptStartingMonth] = useState<Date | undefined>()
   const [receiptEndingMonth, setReceiptEndingMonth] = useState<Date | undefined>()
+  const [oneTimeFeeReceiptOpen, setOneTimeFeeReceiptOpen] = useState(false)
 
   // Get student initials for avatar
   const studentName = enrollmentData.student?.name || "Student"
@@ -139,9 +146,7 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
     }
   }, [enrollmentData.examDetails])
 
-  useEffect(() => {
-    navigator.clipboard.writeText(JSON.stringify(enrollment, null, 2))
-  }, []);
+
 
   useEffect(() => {
 
@@ -279,6 +284,10 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
   const handleCopyId = (id: string) => {
     navigator.clipboard.writeText(id)
     toast.success("ID copied to clipboard")
+  }
+
+  const handleOneTimeFeeReceipt = () => {
+    setOneTimeFeeReceiptOpen((p) => !p)
   }
 
   const handleEnrollmentUpdated = (updatedEnrollment: completeStudentEnrollment) => {
@@ -485,6 +494,7 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
               </div>
             </div>
           </div>
+
           <div className="flex flex-col gap-1 items-end">
             <TooltipProvider>
               <Tooltip>
@@ -515,6 +525,8 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
           </div>
         </div>
       </div>
+
+
 
       {/* Redesigned Enrollment Information Cards - Three separate cards in a grid with non-boxed layout */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
@@ -590,7 +602,6 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
           </CardContent>
         </Card>
       </div>
-
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="subjects">Subjects</TabsTrigger>
@@ -751,7 +762,7 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
                   <TooltipTrigger asChild>
                     <div className="grid grid-cols-2 gap-2">
                       <span className="text-muted-foreground">Monthly Fee</span>
-                      <span className="font-medium text-right">₹{enrollmentData.monthlyFee.toLocaleString()}</span>
+                      <span className="font-medium text-right">₹{enrollmentData.monthlyFee.toLocaleString()} </span>
                     </div>
                   </TooltipTrigger>
                   <TooltipContent>
@@ -766,6 +777,10 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
                     <div className="grid grid-cols-2 gap-2">
                       <span className="text-muted-foreground">One-time Fee</span>
                       <span className="font-medium text-right">
+                        <Button variant="outline" size="sm" className="mt-1 mr-4" onClick={handleOneTimeFeeReceipt}>
+                                  <Receipt className="h-4 w-4 mr-2"/>
+                                  Download Receipt
+                                </Button>
                         ₹{(enrollmentData.one_time_fee || 0).toLocaleString()}
                       </span>
                     </div>
@@ -992,6 +1007,30 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
               endingMonth={receiptEndingMonth}
           />
       )}
+
+      <PaymentReceiptDialog
+          open={oneTimeFeeReceiptOpen}
+          onOpenChange={setOneTimeFeeReceiptOpen}
+          payment={{
+            id: enrollment.id,
+            enrollmentId: enrollment.id,
+            studentId: enrollment.studentId,
+            originalBalance: enrollment.one_time_fee,
+            paidAmount: enrollment.one_time_fee,
+            paidOn: enrollment.sessionStart,
+            remainingBalance: 0,
+            createdAt: enrollment.createdAt,
+            updatedAt: enrollment.updatedAt,
+            monthlyFeeIds: [],
+            student: enrollment.student,
+            studentEnrollment: enrollment
+          }}
+          studentName={studentName}
+          className={enrollmentData.classRoom?.name}
+          sectionName={enrollmentData.classSection?.name}
+          type="one-time-fee"
+      />
+
 
       <CreateExamDialog
         open={createExamDialogOpen}
