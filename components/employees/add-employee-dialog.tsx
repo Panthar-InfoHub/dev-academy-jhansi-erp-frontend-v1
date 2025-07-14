@@ -140,6 +140,8 @@ export function AddEmployeeDialog({ open, onOpenChange, onSuccess }: AddEmployee
       // Convert salary to number
       const employeeData = {
         ...newEmployee,
+        // convert role to lowercase
+        workRole: newEmployee?.workRole?.toLowerCase(),
         salary: Number.parseFloat(newEmployee.salary),
       }
 
