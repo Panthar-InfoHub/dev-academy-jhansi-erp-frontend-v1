@@ -39,7 +39,7 @@ export default async function EnrollmentDetailPage({ params }: EnrollmentDetailP
 
   return (
     <div className="w-full max-w-5xl mx-auto">
-      <EnrollmentDetail enrollment={enrollmentResponse.data} studentId={studentId} />
+      <EnrollmentDetail enrollment={enrollmentResponse.data} studentId={studentId} user={user} />
     </div>
   )
 }

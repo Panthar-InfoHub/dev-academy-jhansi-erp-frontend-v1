@@ -53,13 +53,15 @@ import { UpdateExamDialog } from "./update-exam-dialog"
 import { ResultDialog } from "@/components/students/result-dialog"
 import { ExamAccordion } from "@/components/students/exam-accordion"
 import { Input } from "@/components/ui/input"
+import {customUser} from "@/auth";
 
 interface EnrollmentDetailProps {
   enrollment: completeStudentEnrollment
   studentId: string
+  user: customUser
 }
 
-export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProps) {
+export function EnrollmentDetail({ enrollment, studentId, user }: EnrollmentDetailProps) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("fees") // Set default tab to "fees"
   const [isDeleting, setIsDeleting] = useState(false)
@@ -670,7 +672,7 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
                         <Button
                           variant="outline"
                           onClick={() => setPayFeesDialogOpen(true)}
-                          disabled={enrollmentData.isComplete || allFeesPaid}
+                          disabled={enrollmentData.isComplete || allFeesPaid || user.isTeacher}
                         >
                           <CreditCard className="mr-2 h-4 w-4" />
                           Pay Fees
@@ -679,7 +681,8 @@ export function EnrollmentDetail({ enrollment, studentId }: EnrollmentDetailProp
                     </TooltipTrigger>
                     <TooltipContent>
                       <p>
-                        {enrollmentData.isComplete
+                        {user.isTeacher ? "Only Admin can update the fees" :
+                        enrollmentData.isComplete
                           ? "Enrollment is marked as complete, no more payments needed"
                           : allFeesPaid
                             ? "All fees have been paid"
