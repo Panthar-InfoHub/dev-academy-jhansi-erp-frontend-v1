@@ -35,12 +35,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import {customUser} from "@/auth";
 
 interface ClassroomTableProps {
   initialClassrooms: completeClassDetails[]
+  user: customUser
 }
 
-export function ClassroomTable({ initialClassrooms }: ClassroomTableProps) {
+export function ClassroomTable({ initialClassrooms, user }: ClassroomTableProps) {
   const router = useRouter()
   const [classrooms, setClassrooms] = useState<completeClassDetails[]>(initialClassrooms)
   const [isLoading, setIsLoading] = useState(false)
@@ -253,7 +255,7 @@ export function ClassroomTable({ initialClassrooms }: ClassroomTableProps) {
 
             {/* Add Class Dialog */}
             <Dialog open={newClassDialogOpen} onOpenChange={setNewClassDialogOpen}>
-              <DialogTrigger asChild>
+              <DialogTrigger disabled={user.isTeacher} asChild>
                 <Button>
                   <Plus className="h-4 w-4 sm:mr-2" />
                   <span className="hidden sm:inline">New Class</span>
@@ -374,7 +376,7 @@ export function ClassroomTable({ initialClassrooms }: ClassroomTableProps) {
                       </TableCell>
                     <TableCell>
                       <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
+                        <DropdownMenuTrigger disabled={user.isTeacher} asChild>
                           <Button variant="ghost" size="icon" className="h-8 w-8">
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>

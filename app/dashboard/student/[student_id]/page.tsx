@@ -23,7 +23,7 @@ export default async function StudentDetailPage({ params }: StudentDetailPagePro
   const session = await auth()
   const user = session?.user as customUser
 
-  if (!user || !user.isAdmin) {
+  if (!user || (!user.isAdmin && !user.isTeacher)) {
     redirect("/dashboard")
   }
 
@@ -36,7 +36,7 @@ export default async function StudentDetailPage({ params }: StudentDetailPagePro
 
   return (
     <div className="w-full max-w-5xl mx-auto">
-      <StudentDetail student={studentResponse.data} />
+      <StudentDetail student={studentResponse.data} user={user} />
     </div>
   )
 }

@@ -44,12 +44,14 @@ import { getClassroomDetails, getAllSectionsOfClassroom } from "@/lib/actions/cl
 import { PaymentReceiptDialog } from "./payment-receipt-dialog"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { completeClassDetails } from "@/types/classroom";
+import {customUser} from "@/auth";
 
 interface StudentDetailProps {
   student: completeStudentDetails
+  user: customUser
 }
 
-export function StudentDetail({ student }: StudentDetailProps) {
+export function StudentDetail({ student, user }: StudentDetailProps) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("details")
   const [isDeleting, setIsDeleting] = useState(false)
@@ -225,17 +227,17 @@ export function StudentDetail({ student }: StudentDetailProps) {
             <Pencil className="mr-2 h-4 w-4" />
             Edit Student
           </Button>
-          <Button variant="outline" onClick={() => setNewEnrollmentDialogOpen(true)}>
+          <Button disabled={user.isTeacher} variant="outline" onClick={() => setNewEnrollmentDialogOpen(true)}>
             <UserPlus className="mr-2 h-4 w-4" />
             New Enrollment
           </Button>
           {studentData.isActive ? (
-            <Button variant="outline" onClick={handleToggleStatus} disabled={isTogglingStatus}>
+            <Button variant="outline" onClick={handleToggleStatus} disabled={isTogglingStatus || user.isTeacher}>
               <Ban className="mr-2 h-4 w-4" />
               Disable Student
             </Button>
           ) : (
-            <Button variant="outline" onClick={handleToggleStatus} disabled={isTogglingStatus}>
+            <Button variant="outline" onClick={handleToggleStatus} disabled={isTogglingStatus || user.isTeacher}>
               <CheckCircle className="mr-2 h-4 w-4" />
               Enable Student
             </Button>

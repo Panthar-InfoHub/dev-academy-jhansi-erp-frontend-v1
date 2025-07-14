@@ -24,7 +24,7 @@ export default async function ClassroomDetailPage({ params }: ClassroomDetailPag
   const session = await auth()
   const user = session?.user as customUser
 
-  if (!user || !user.isAdmin) {
+  if (!user || (!user.isAdmin && !user.isTeacher)) {
     redirect("/dashboard")
   }
 
@@ -38,7 +38,7 @@ export default async function ClassroomDetailPage({ params }: ClassroomDetailPag
 
   return (
     <div className="w-full max-w-5xl mx-auto">
-      <ClassroomDetail classroom={classroomData as completeClassDetails} sections={sections || []} />
+      <ClassroomDetail classroom={classroomData as completeClassDetails} sections={sections || []} user={user} />
     </div>
   )
 }

@@ -62,13 +62,15 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
+import {customUser} from "@/auth";
 
 interface ClassroomDetailProps {
   classroom: completeClassDetails
   sections: completeClassSectionDetails[]
+  user: customUser
 }
 
-export function ClassroomDetail({ classroom, sections: initialSections }: ClassroomDetailProps) {
+export function ClassroomDetail({ classroom, sections: initialSections, user }: ClassroomDetailProps) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("overview")
   const [editClassDialogOpen, setEditClassDialogOpen] = useState(false)
@@ -749,7 +751,7 @@ export function ClassroomDetail({ classroom, sections: initialSections }: Classr
             </div>
           </div>
           <Dialog open={newSectionDialogOpen} onOpenChange={setNewSectionDialogOpen}>
-            <DialogTrigger asChild>
+            <DialogTrigger disabled={user.isTeacher} asChild>
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
                 New Section
@@ -929,7 +931,7 @@ export function ClassroomDetail({ classroom, sections: initialSections }: Classr
                   </div>
                 ))
               )}
-              <Button variant="outline" className="w-full mt-2" onClick={() => setNewSectionDialogOpen(true)}>
+              <Button disabled={user.isTeacher} variant="outline" className="w-full mt-2" onClick={() => setNewSectionDialogOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />
                 Add Section
               </Button>
@@ -1087,7 +1089,7 @@ export function ClassroomDetail({ classroom, sections: initialSections }: Classr
                       </Badge>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <Button variant="outline" onClick={() => handleEditSection(selectedSection)}>
+                      <Button disabled={user.isTeacher} variant="outline" onClick={() => handleEditSection(selectedSection)}>
                         <Pencil className="mr-2 h-4 w-4" />
                         Edit Section
                       </Button>
@@ -1095,6 +1097,7 @@ export function ClassroomDetail({ classroom, sections: initialSections }: Classr
                         <Button
                           variant="outline"
                           className="text-amber-600"
+                          disabled={user.isTeacher}
                           onClick={() => setSectionToToggle({ id: selectedSection.id, isActive: true })}
                         >
                           <Ban className="mr-2 h-4 w-4" />
@@ -1104,13 +1107,16 @@ export function ClassroomDetail({ classroom, sections: initialSections }: Classr
                         <Button
                           variant="outline"
                           className="text-green-600"
+                          disabled={user.isTeacher}
                           onClick={() => setSectionToToggle({ id: selectedSection.id, isActive: false })}
                         >
                           <CheckCircle className="mr-2 h-4 w-4" />
                           Enable
                         </Button>
                       )}
-                      <Button variant="destructive" onClick={() => setSectionToDelete(selectedSection.id)}>
+                      <Button
+                          disabled={user.isTeacher}
+                          variant="destructive" onClick={() => setSectionToDelete(selectedSection.id)}>
                         <Trash2 className="mr-2 h-4 w-4" />
                         Delete
                       </Button>

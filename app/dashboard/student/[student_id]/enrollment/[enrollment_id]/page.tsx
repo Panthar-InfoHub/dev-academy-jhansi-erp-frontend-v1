@@ -24,7 +24,7 @@ export default async function EnrollmentDetailPage({ params }: EnrollmentDetailP
   const session = await auth()
   const user = session?.user as customUser
 
-  if (!user || !user.isAdmin) {
+  if (!user || (!user.isAdmin && !user.isTeacher)) {
     redirect("/dashboard")
   }
 

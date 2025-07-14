@@ -354,11 +354,12 @@ export function EnrollmentDetail({ enrollment, studentId, user }: EnrollmentDeta
         </Button>
 
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setEditDialogOpen(true)}>
+          <Button disabled={user.isTeacher} variant="outline" onClick={() => setEditDialogOpen(true)}>
             <Pencil className="mr-2 h-4 w-4" />
             Edit Enrollment
           </Button>
           <Button
+              disabled={user.isTeacher}
             variant="outline"
             className="border-amber-200 text-amber-600 hover:bg-amber-50 hover:text-amber-700"
             onClick={() => setResetDialogOpen(true)}
@@ -368,7 +369,7 @@ export function EnrollmentDetail({ enrollment, studentId, user }: EnrollmentDeta
           </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="destructive">
+              <Button disabled={user.isTeacher} variant="destructive">
                 <Trash2 className="mr-2 h-4 w-4" />
                 Delete Enrollment
               </Button>

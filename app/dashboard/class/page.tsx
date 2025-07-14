@@ -7,7 +7,7 @@ export default async function ClassroomPage() {
   const session = await auth()
   const user = session?.user as customUser
 
-  if (!user || !user.isAdmin) {
+  if (!user || (!user.isAdmin && !user.isTeacher)) {
     redirect("/dashboard")
   }
 
@@ -19,7 +19,7 @@ export default async function ClassroomPage() {
         <h1 className="text-3xl font-bold">Classes</h1>
       </div>
 
-      <ClassroomTable initialClassrooms={classrooms || []} />
+      <ClassroomTable initialClassrooms={classrooms || []} user={user} />
     </div>
   )
 }
